@@ -16,6 +16,12 @@ def testhub():
     print(repo.get_topics())
 
 
+def search():
+    repo = auth.search_repositories(query='youtube+music')
+    for r in repo:
+        print(r)
+
+
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    testhub()
+    search()
