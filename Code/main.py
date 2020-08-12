@@ -5,6 +5,7 @@ installed packages: apt install cURL
 """
 
 from github import Github
+import Metric_StatsCodeFrequency
 
 # authentication of REST API v3
 
@@ -18,22 +19,20 @@ def testhub():
 
 def search():
     repo = auth.search_repositories(query='ytmdesktop')
+
     #repo = auth.search_repositories(query='youtube')
     repo0 = repo[0]
-    compurl = repo0.compare('master@{all}', 'master')
+    result = Metric_StatsCodeFrequency.stats_code_frequency(repo0)
+    print(result)
+    #compurl = repo0.compare('master@{all}', 'master')
     scf = repo0.get_stats_code_frequency()
 
-    diff = compurl.get__repr__(compurl.raw_data)
+    #diff = compurl.get__repr__(compurl.raw_data)
     scf1 = scf[0].deletions
-    additions = 0
-    deletions = 0
-    for add_del in scf:
-        additions += add_del.additions
-        deletions += add_del.deletions
-        print(add_del.additions, add_del.deletions, add_del.week, '\n')
-    print(additions, deletions)
 
-    print(repo0, scf1, len(scf), diff)
+
+    print(auth.get_rate_limit())
+
 
 
 # Press the green button in the gutter to run the script.
