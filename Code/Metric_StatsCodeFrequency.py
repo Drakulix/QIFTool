@@ -10,5 +10,5 @@ def stats_code_frequency(repo_obj):
     for add_del in repo_obj_scf:
         additions += add_del.additions
         deletions += add_del.deletions
-        print(add_del.additions, add_del.deletions, add_del.week, '\n')
+        # print(add_del.additions, add_del.deletions, add_del.week)
     return additions, deletions

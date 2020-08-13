@@ -5,7 +5,8 @@ installed packages: apt install cURL
 """
 
 from github import Github
-import Metric_StatsCodeFrequency
+import Metric_StatsCodeFrequency    # metric file for StatsCodeFrequency
+import Metric_Contributors          # metric file for Contributors
 
 # authentication of REST API v3
 
@@ -18,21 +19,18 @@ def testhub():
 
 
 def search():
-    repo = auth.search_repositories(query='ytmdesktop')
-
-    #repo = auth.search_repositories(query='youtube')
-    repo0 = repo[0]
-    result = Metric_StatsCodeFrequency.stats_code_frequency(repo0)
-    print(result)
-    #compurl = repo0.compare('master@{all}', 'master')
-    scf = repo0.get_stats_code_frequency()
-
-    #diff = compurl.get__repr__(compurl.raw_data)
-    scf1 = scf[0].deletions
-
-
+    """
+    repo = auth.search_repositories(query='spotify')
+    for i in range(0, 15):
+        print(Metric_Contributors.contributors_count(repo[i]), '\t',
+              Metric_StatsCodeFrequency.stats_code_frequency(repo[i]),
+              '\t', repo[i].full_name,
+              repo[i].get_issues_events()[0].issue.get_comments())
+    """
+    repo = auth.search_repositories(query='nuclear')
+    repo_first = repo[0]
+    print(repo_first.full_name, '\t', repo_first.get_issues(state='all')[1].get_comments()[0].body)
     print(auth.get_rate_limit())
-
 
 
 # Press the green button in the gutter to run the script.
