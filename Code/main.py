@@ -4,10 +4,12 @@ installed packages: apt install cURL
                     pip3 install PyGithub
 """
 
+import urllib.request, json
 from github import Github
 import Metric_StatsCodeFrequency    # metric file for StatsCodeFrequency
 import Metric_Contributors          # metric file for Contributors
 import Metric_Issues                # metric file for Issues
+import Metric_Commits               # metric file for Commits
 
 # authentication of REST API v3
 
@@ -28,19 +30,22 @@ def search():
               '\t', repo[i].full_name,
               repo[i].get_issues_events()[0].issue.get_comments())
     """
-    repo = auth.search_repositories(query='nuclear')
+    repo = auth.search_repositories(query='ytmdesktop')
     repo_first = repo[0]
-    print(issues(repo_first))
-    print(auth.get_rate_limit())
+    print(code_pattern(repo_first, auth))
+    print(auth.get_rate_limit().core.remaining)
 
-def issues(repo_obj):
-    issues_obj = repo_obj.get_issues(state='all')
-    for iss in issues_obj:
-        print(iss.number, '\t', iss.title)
-        for iss_comment in iss.get_comments():
-            print('\t\t\t', iss_comment.body)
-        print(iss.number, '\t', iss.title)
-    return issues_obj
+
+def code_pattern(repo_obj, auth):
+    # print(repo_obj.get_contents("main.js").decoded_content)
+    print(repo_obj.contents_url[:-7])
+    with urllib.request.urlopen(repo_obj.contents_url[:-7]) as url:
+        json_obj = json.load(url)
+        for data in json_obj:
+            # if data['path'][-3:] == *repos language* dann gehe hinein und schaue weiter
+            print(data["path"][-3:])
+
+
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
