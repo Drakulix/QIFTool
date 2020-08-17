@@ -4,7 +4,8 @@ installed packages: apt install cURL
                     pip3 install PyGithub
 """
 
-import urllib.request, json
+import urllib.request
+import json
 from github import Github
 import Metric_StatsCodeFrequency    # metric file for StatsCodeFrequency
 import Metric_Contributors          # metric file for Contributors
@@ -30,20 +31,33 @@ def search():
               '\t', repo[i].full_name,
               repo[i].get_issues_events()[0].issue.get_comments())
     """
-    repo = auth.search_repositories(query='ytmdesktop')
+    # repo = auth.search_repositories(query='ytmdesktop')
+    print(auth.get_rate_limit().search)
+    print(auth.get_rate_limit())
+    print('\n')
+    repo = auth.search_repositories(query='size:500..1000')
+    counter = 1
+    repo_list = []
+    for rep in repo:
+        print(counter, '- remaining: ', auth.get_rate_limit().search.remaining,  'limit: ',
+        auth.get_rate_limit().search.limit, rep.name)
+        repo_list.append(rep.name)
+        counter += 1
+        if counter % 100 == 0:
+            print(auth.get_rate_limit())
+            break
+
+    repo2 = auth.search_repositories(query='size:500..1000', order='asc')
+    boolean = False
+    for rep2 in repo2:
+        if rep2.name in repo_list:
+            boolean = True
+        else:
+            boolean = False
+        print(counter, '- remaining: ', auth.get_rate_limit().search.remaining,  'limit: ',
+        auth.get_rate_limit().search.limit, rep2.name, 'repo inside list: ', boolean)
+        counter += 1
     repo_first = repo[0]
-    print(code_pattern(repo_first, auth))
-    print(auth.get_rate_limit().core.remaining)
-
-
-def code_pattern(repo_obj, auth):
-    # print(repo_obj.get_contents("main.js").decoded_content)
-    print(repo_obj.contents_url[:-7])
-    with urllib.request.urlopen(repo_obj.contents_url[:-7]) as url:
-        json_obj = json.load(url)
-        for data in json_obj:
-            # if data['path'][-3:] == *repos language* dann gehe hinein und schaue weiter
-            print(data["path"][-3:])
 
 
 
