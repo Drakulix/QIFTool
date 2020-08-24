@@ -17,7 +17,7 @@ import Metric_Commits  # metric file for Commits
 
 # authentication of REST API v3
 
-auth = Github("c2c1d13983cbb8c1d9ce7845c20d7937ba7c25a0", per_page=1000)
+auth = Github("c2c1d13983cbb8c1d9ce7845c20d7937ba7c25a0", per_page=100)
 
 file = open('database.txt', 'a')
 
@@ -34,7 +34,7 @@ def create_connection(db_file):
     try:
         conn = sqlite3.connect(db_file)
         return conn
-    except Error as e:
+    except Exception as e:
         print(e)
     return conn
 
@@ -49,7 +49,7 @@ def create_table(conn, create_table_statement):
     try:
         cursor = conn.cursor()
         cursor.execute(create_table_statement)
-    except Error as e:
+    except Exception as e:
         print(e)
 
 
@@ -60,18 +60,46 @@ def create_database():
     """
     # choose path for the database to be created at or none if you want the database to be created in
     # the current directory
-    database = r"/home/robert/OSCTool/Code/OSCTool.db"
-    repository_table_statement = """ CREATE TABLE IF NOT EXISTS repositories (
-                                        repo_id integer NOT NULL,
-                                        repo_name text NOT NULL,
-                                        repo_creator_name text NOT NULL,
-                                        code_frequency integer,
-                                        commits text,
-                                        contributors integer,
-                                        issues text
-                                        ); """
-    # create the database connection
-    conn = create_connection(database)
+    try:
+        database = r"/home/robert/OSCTool/Code/OSCTool.db"
+        repository_table_statement = """ CREATE TABLE IF NOT EXISTS repositories (
+                                            id integer NOT NULL PRIMARY KEY,
+                                            repo_id integer NOT NULL,
+                                            repo_creator text NOT NULL,
+                                            repo_name text NOT NULL,
+                                            downloaded boolean NOT NULL,
+                                            
+                                            code_frequency_additions_metric integer,
+                                            code_frequency_deletions_metric integer,
+                                            code_frequency_difference_metric real,
+                                            code_frequency_additions_value integer,
+                                            code_frequency_deletions_value integer,
+                                            code_frequency_difference_value real,
+                                            
+                                            commits_metric text,
+                                            commits_value text,
+                                            
+                                            contributors_metric integer,
+                                            contributors_value integer,
+                                            
+                                            issues_metric text,
+                                            issues_value text,
+                                            
+                                            UNIQUE(repo_id, repo_creator, repo_name, downloaded, 
+                                                    code_frequency_additions_metric, code_frequency_deletions_metric,
+                                                    code_frequency_difference_metric, 
+                                                    code_frequency_additions_value, code_frequency_deletions_value,
+                                                    code_frequency_difference_value,
+                                                    
+                                                    commits_metric, commits_value, 
+                                                    contributors_metric, contributors_value, 
+                                                    
+                                                    issues_metric, issues_value) ON CONFLICT IGNORE
+                                            ); """
+        # create the database connection
+        conn = create_connection(database)
+    except Error as e:
+        print(e)
 
     # create the repositories table if it does not exist yet
     if conn is not None:
@@ -86,11 +114,39 @@ def test_input():
         conn = create_connection(database)
         cursor = conn.cursor()
         with conn:
-            input_test = (1, 'testrepo', 'testcreator', 999, 'refactor', 100, 'new')
-            insert_statement = """INSERT INTO repositories VALUES (?, ?, ?, ?, ?, ?, ?) """
+            input_test = (1, 'testcreator', 'testrepo', False,
+                          999, 800,  0.2,
+                          808, 559, 0.18,
+                          'refactor, debt', 'refactor, debt',
+                          100, 97,
+                          'new, bad, old', 'new, bad, old')
+            input_test2 = (1, 'testcreator', 'testrepo', True,
+                          800, 500, 0.1,
+                          808, 559, 0.18,
+                          'refactor, debt, technical', 'refactor, debt, technical',
+                          80, 97,
+                          'new, bad, old, frequent', 'new, bad, old, frequent')
+            insert_statement = """INSERT INTO repositories (repo_id, repo_creator, repo_name, downloaded, 
+                                                    code_frequency_additions_metric, code_frequency_deletions_metric,
+                                                    code_frequency_difference_metric, 
+                                                    code_frequency_additions_value, code_frequency_deletions_value,
+                                                    code_frequency_difference_value,
+                                                    
+                                                    commits_metric, commits_value, 
+                                                    contributors_metric, contributors_value, 
+                                                    
+                                                    issues_metric, issues_value) 
+                                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?); """
             cursor.execute(insert_statement, input_test)
-    except Error as e:
+            cursor.execute(insert_statement, input_test2)
+            select_statement = """SELECT downloaded, commits_value FROM repositories WHERE downloaded=False;"""
+            commits = cursor.execute(select_statement).fetchall()
+            for com in commits[0][1].split(', '):
+                print(com)
+            print(commits)
+    except Exception as e:
         print(e)
+    # TODO write when to close and commit changes into the database
 
 
 # ------------------------------------------------------------------------------------------------ #
