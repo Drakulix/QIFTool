@@ -8,6 +8,7 @@ import urllib.request
 import json
 import time
 import sqlite3
+import os
 from sqlite3 import Error
 from github import Github
 import Metric_StatsCodeFrequency  # metric file for StatsCodeFrequency
@@ -19,6 +20,7 @@ import Metric_Commits  # metric file for Commits
 
 auth = Github("c2c1d13983cbb8c1d9ce7845c20d7937ba7c25a0", per_page=100)
 
+# creates a .txt file in the current directory of the .py file
 file = open('database.txt', 'a')
 
 
@@ -55,7 +57,7 @@ def create_table(conn, create_table_statement):
 
 def create_database():
     """
-    creates the databse file and tables
+    creates the database file and tables
     :return: False
     """
     # choose path for the database to be created at or none if you want the database to be created in
@@ -195,20 +197,66 @@ def search():
 
 
 def query():
+    """
+    test function to see what repositories will be looked up by searching for it
+    :return:
+    """
     repo_count = 0
     for i in range(1, 5):
         repo = auth.search_repositories(query='size:>500')
         for rep in repo:
             repo_count += 1
             file.write(rep.name+'\n')
-            print(repo_count, rep.size, rep.name)
+            print(repo_count, rep.size, rep.name, rep.downloads_url)
             if repo_count % 100 == 0:
                 # time.sleep(0.5)
                 print(auth.get_rate_limit().search, auth.get_rate_limit())
 
 
+def create_folder(path):
+    """
+    creates the folder structure the repositories will be written to
+    :param path: TODO make it work via read parameter out of .txt file
+                    if path is None the current directory will be used to create a folder inside
+    :return: path of the created folder
+    """
+    if path is None:
+        path = os.getcwd() + '/Repositories'
+    if not os.path.exists(path):
+        os.makedirs(path)
+    return path
+
+
+def download_repo(repo, folder):
+    repo = auth.get_repo(repo)
+    os.chdir(folder)
+    if not os.path.exists(os.getcwd() + '/' + repo.name):
+        os.makedirs(os.getcwd() + '/' + repo.name)
+    os.chdir(os.getcwd() + '/' + repo.name)
+
+    contents = repo.get_contents("")
+    while contents:
+        file_content = contents.pop(0)
+        print(file_content.type)
+        if file_content.type == 'dir':
+            print(file_content)
+            os.makedirs(file_content.path)
+            contents.extend(repo.get_contents(file_content.path))
+        else:
+            print(file_content)
+            try:
+
+                file = open(file_content.path, 'wb')
+                file.write(file_content.decoded_content)
+            except:
+                file = open(file_content.path, 'wb')
+                file.write('could not write file because of unsupported decoding')
+
+
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    create_database()
-    test_input()
+    folder = create_folder(None)
+    # create_database()
+    # test_input()
     # query()
+    download_repo('ytmdesktop/ytmdesktop', folder)
