@@ -21,7 +21,7 @@ import Metric_Commits  # metric file for Commits
 auth = Github("c2c1d13983cbb8c1d9ce7845c20d7937ba7c25a0", per_page=100)
 
 # creates a .txt file in the current directory of the .py file
-file = open('database.txt', 'a')
+config = open('config.txt', 'a')
 
 
 # ----------------------------------------------------------------------------------------------- #
@@ -69,6 +69,7 @@ def create_database():
                                             repo_id integer NOT NULL,
                                             repo_creator text NOT NULL,
                                             repo_name text NOT NULL,
+                                            repo_size integer NOT NULL,
                                             downloaded boolean NOT NULL,
                                             
                                             code_frequency_additions_metric integer,
@@ -87,7 +88,7 @@ def create_database():
                                             issues_metric text,
                                             issues_value text,
                                             
-                                            UNIQUE(repo_id, repo_creator, repo_name, downloaded, 
+                                            UNIQUE(repo_id, repo_creator, repo_name, repo_size, downloaded, 
                                                     code_frequency_additions_metric, code_frequency_deletions_metric,
                                                     code_frequency_difference_metric, 
                                                     code_frequency_additions_value, code_frequency_deletions_value,
@@ -116,19 +117,20 @@ def test_input():
         conn = create_connection(database)
         cursor = conn.cursor()
         with conn:
-            input_test = (1, 'testcreator', 'testrepo', False,
+            input_test = (1242342, 'testcreator', 'testrepo', 500, False,
                           999, 800,  0.2,
                           808, 559, 0.18,
                           'refactor, debt', 'refactor, debt',
                           100, 97,
                           'new, bad, old', 'new, bad, old')
-            input_test2 = (1, 'testcreator', 'testrepo', True,
+            input_test2 = (11341234, 'testcreator', 'testrepo', 750, True,
                           800, 500, 0.1,
                           808, 559, 0.18,
                           'refactor, debt, technical', 'refactor, debt, technical',
                           80, 97,
                           'new, bad, old, frequent', 'new, bad, old, frequent')
-            insert_statement = """INSERT INTO repositories (repo_id, repo_creator, repo_name, downloaded, 
+            insert_statement = """INSERT INTO repositories (repo_id, repo_creator, repo_name, 
+                                                    repo_size, downloaded, 
                                                     code_frequency_additions_metric, code_frequency_deletions_metric,
                                                     code_frequency_difference_metric, 
                                                     code_frequency_additions_value, code_frequency_deletions_value,
@@ -138,7 +140,7 @@ def test_input():
                                                     contributors_metric, contributors_value, 
                                                     
                                                     issues_metric, issues_value) 
-                                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?); """
+                                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?); """
             cursor.execute(insert_statement, input_test)
             cursor.execute(insert_statement, input_test2)
             select_statement = """SELECT downloaded, commits_value FROM repositories WHERE downloaded=False;"""
@@ -206,7 +208,7 @@ def query():
         repo = auth.search_repositories(query='size:>500')
         for rep in repo:
             repo_count += 1
-            file.write(rep.name+'\n')
+            # file.write(rep.name+'\n')
             print(repo_count, rep.size, rep.name, rep.downloads_url)
             if repo_count % 100 == 0:
                 # time.sleep(0.5)
@@ -229,10 +231,12 @@ def create_folder(path):
 
 def download_repo(repo, folder):
     repo = auth.get_repo(repo)
+    repo_creator = repo.full_name.split('/')[0]
     os.chdir(folder)
-    if not os.path.exists(os.getcwd() + '/' + repo.name):
-        os.makedirs(os.getcwd() + '/' + repo.name)
-    os.chdir(os.getcwd() + '/' + repo.name)
+    folder_name = os.getcwd() + '/' + repo_creator + '_' + repo.name
+    if not os.path.exists(folder_name):
+        os.makedirs(folder_name)
+    os.chdir(folder_name)
 
     contents = repo.get_contents("")
     while contents:
@@ -255,8 +259,8 @@ def download_repo(repo, folder):
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    folder = create_folder(None)
-    # create_database()
-    # test_input()
+    repo_folder = create_folder(None)
+    create_database()
+    test_input()
     # query()
-    download_repo('ytmdesktop/ytmdesktop', folder)
+    download_repo('ytmdesktop/ytmdesktop', repo_folder)
