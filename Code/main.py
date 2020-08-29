@@ -9,6 +9,8 @@ import json
 import time
 import sqlite3
 import os
+from datetime import datetime
+
 from sqlite3 import Error
 from github import Github
 import Metric_StatsCodeFrequency  # metric file for StatsCodeFrequency
@@ -24,7 +26,8 @@ auth = Github("c2c1d13983cbb8c1d9ce7845c20d7937ba7c25a0", per_page=100)
 config = open('config.txt', 'a')
 
 
-# ----------------------------------------------------------------------------------------------- #
+# -------------------------------------------------------------------------------------------------------------------- #
+# the following block of code is part of the database interaction
 
 def create_connection(db_file):
     """
@@ -71,33 +74,22 @@ def create_database():
                                             repo_name text NOT NULL,
                                             repo_size integer NOT NULL,
                                             downloaded boolean NOT NULL,
+                                            last_access text NOT NULL,
                                             
-                                            code_frequency_additions_metric integer,
-                                            code_frequency_deletions_metric integer,
-                                            code_frequency_difference_metric real,
-                                            code_frequency_additions_value integer,
-                                            code_frequency_deletions_value integer,
-                                            code_frequency_difference_value real,
+                                            code_frequency_additions integer,
+                                            code_frequency_deletions integer,
+                                            code_frequency_difference real,
                                             
-                                            commits_metric text,
-                                            commits_value text,
+                                            contributors integer,
                                             
-                                            contributors_metric integer,
-                                            contributors_value integer,
+                                            commits text,
                                             
-                                            issues_metric text,
-                                            issues_value text,
+                                            issues text,
                                             
-                                            UNIQUE(repo_id, repo_creator, repo_name, repo_size, downloaded, 
-                                                    code_frequency_additions_metric, code_frequency_deletions_metric,
-                                                    code_frequency_difference_metric, 
-                                                    code_frequency_additions_value, code_frequency_deletions_value,
-                                                    code_frequency_difference_value,
-                                                    
-                                                    commits_metric, commits_value, 
-                                                    contributors_metric, contributors_value, 
-                                                    
-                                                    issues_metric, issues_value) ON CONFLICT IGNORE
+                                            UNIQUE(repo_id, repo_creator, repo_name, repo_size, downloaded, last_access,
+                                                    code_frequency_additions, code_frequency_deletions,
+                                                    code_frequency_difference,
+                                                    contributors, commits, issues) ON CONFLICT IGNORE
                                             ); """
         # create the database connection
         conn = create_connection(database)
@@ -111,49 +103,99 @@ def create_database():
         print('Error! Cannot create database connection.')
 
 
-def test_input():
-    try:
-        database = r"/home/robert/OSCTool/Code/OSCTool.db"
-        conn = create_connection(database)
-        cursor = conn.cursor()
-        with conn:
-            input_test = (1242342, 'testcreator', 'testrepo', 500, False,
-                          999, 800,  0.2,
-                          808, 559, 0.18,
-                          'refactor, debt', 'refactor, debt',
-                          100, 97,
-                          'new, bad, old', 'new, bad, old')
-            input_test2 = (11341234, 'testcreator', 'testrepo', 750, True,
-                          800, 500, 0.1,
-                          808, 559, 0.18,
-                          'refactor, debt, technical', 'refactor, debt, technical',
-                          80, 97,
-                          'new, bad, old, frequent', 'new, bad, old, frequent')
-            insert_statement = """INSERT INTO repositories (repo_id, repo_creator, repo_name, 
-                                                    repo_size, downloaded, 
-                                                    code_frequency_additions_metric, code_frequency_deletions_metric,
-                                                    code_frequency_difference_metric, 
-                                                    code_frequency_additions_value, code_frequency_deletions_value,
-                                                    code_frequency_difference_value,
-                                                    
-                                                    commits_metric, commits_value, 
-                                                    contributors_metric, contributors_value, 
-                                                    
-                                                    issues_metric, issues_value) 
-                                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?); """
-            cursor.execute(insert_statement, input_test)
-            cursor.execute(insert_statement, input_test2)
-            select_statement = """SELECT downloaded, commits_value FROM repositories WHERE downloaded=False;"""
-            commits = cursor.execute(select_statement).fetchall()
-            for com in commits[0][1].split(', '):
-                print(com)
-            print(commits)
-    except Exception as e:
-        print(e)
+def insert(conn, values):
+    """
+    insert function to write the given values inside the database table 'repositories'
+    :param conn: the connection made of the database
+    :param values: the values to be written inside the table
+    :return: False
+    """
+    cursor = conn.cursor()
+    # repo_id = values[0]
+    # repo_creator = values[1]
+    # repo_name = values[2]
+    # repo_size = values[3]
+    # downloaded = values[4]
+    # last_access = values[5]
+    # code_frequency_additions= values[6]
+    # code_frequency_deletions = values[7]
+    # code_frequency_difference = values[8]
+    # contributors = values[9]
+    commits = values[10]
+    issues = values[11]
+    insert_statement_without_lists = """INSERT INTO repositories (repo_id, repo_creator, repo_name, repo_size, 
+                                                                    downloaded, 
+                                                                    last_access,
+                                                                    code_frequency_additions, 
+                                                                    code_frequency_deletions,
+                                                                    code_frequency_difference,
+                                                                    contributors) 
+                                                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?); """
+    insert_statement_with_lists_commits = """INSERT INTO repositories (commits) VALUES (?); """
+    insert_statement_with_lists_issues = """INSERT INTO repositories (issues) VALUES (?); """
+    with conn:
+        try:
+            cursor.execute(insert_statement_without_lists, values[:-2])
+            for commit in commits:
+                cursor.execute(insert_statement_with_lists_commits, commit)
+            for issue in issues:
+                cursor.execute(insert_statement_with_lists_issues, issue)
+        except Exception as e:
+            print(e.with_traceback())
     # TODO write when to close and commit changes into the database
 
 
-# ------------------------------------------------------------------------------------------------ #
+# -------------------------------------------------------------------------------------------------------------------- #
+# the following block of code deals with the folder structure and the downloading of the repositories
+
+def create_folder(path):
+    """
+    creates the folder structure the repositories will be written to
+    :param path: TODO make it work via read parameter out of .txt file
+                    if path is None the current directory will be used to create a folder inside
+    :return: path of the created folder
+    """
+    if path is None:
+        path = os.getcwd() + '/repositories'
+    if not os.path.exists(path):
+        os.makedirs(path)
+    return path
+
+
+def download_repo(repo, folder):
+    """
+    function to download the repo as it is seen in github with the folder structure intact
+    :param repo: repository object to download
+    :param folder: path of the folder where the repository will be dowloaded in
+    :return: False
+    """
+    repo = auth.get_repo(repo)
+    repo_creator = repo.full_name.split('/')[0]
+    os.chdir(folder)
+    folder_name = os.getcwd() + '/' + repo_creator + '_' + repo.name + '_' + repo.id
+    if not os.path.exists(folder_name):
+        os.makedirs(folder_name)
+    os.chdir(folder_name)
+
+    contents = repo.get_contents("")
+    while contents:
+        file_content = contents.pop(0)
+        print(file_content.type)
+        if file_content.type == 'dir':
+            print(file_content)
+            os.makedirs(file_content.path)
+            contents.extend(repo.get_contents(file_content.path))
+        else:
+            print(file_content)
+            try:
+                file = open(file_content.path, 'wb')
+                file.write(file_content.decoded_content)
+            except Exception as e:
+                file = open(file_content.path, 'w')
+                file.write('could not write file because of unsupported decoding')
+                print(e.with_traceback())
+
+# -------------------------------------------------------------------------------------------------------------------- #
 
 def testhub():
     repo = auth.get_repo("PyGithub/PyGithub")
@@ -204,63 +246,46 @@ def query():
     :return:
     """
     repo_count = 0
-    for i in range(1, 5):
-        repo = auth.search_repositories(query='size:>500')
-        for rep in repo:
-            repo_count += 1
-            # file.write(rep.name+'\n')
-            print(repo_count, rep.size, rep.name, rep.downloads_url)
-            if repo_count % 100 == 0:
-                # time.sleep(0.5)
-                print(auth.get_rate_limit().search, auth.get_rate_limit())
+    values = []
+    repos = auth.search_repositories(query='size:>500')
+    for repo in repos:
+        repo_count += 1
+        print(repo_count, repo.size, repo.name, repo.downloads_url)
+        values.append(repo.id)  # repo_id
+        values.append(repo.full_name.split('/')[0])     # repo_creator
+        values.append(repo.name)    # repo_name
+        values.append(repo.size)    # repo_size
+        values.append('False')      # downloaded
+        values.append(datetime.date(datetime.now()))    # last_access
+        scf = Metric_StatsCodeFrequency.stats_code_frequency()
+        values.append(scf[0])   # code_frequency_additions
+        values.append(scf[1])   # code_frequency_deletions
+        values.append(scf[1]/scf[0])    # # code_frequency_difference
+        values.append(Metric_Contributors.contributors())   # contributors
+
+        # repo_creator = values[1]
+        # repo_name = values[2]
+        # repo_size = values[3]
+        # downloaded = values[4]
+        # last_access = values[5]
+        # code_frequency_additions = values[6]
+        # code_frequency_deletions = values[7]
+        # code_frequency_difference = values[8]
+        # contributors = values[9]
+        commits = values[10]
+        issues = values[11]
+        if repo_count % 100 == 0:
+            # time.sleep(0.5)
+            print(auth.get_rate_limit().search, auth.get_rate_limit())
+            break
 
 
-def create_folder(path):
-    """
-    creates the folder structure the repositories will be written to
-    :param path: TODO make it work via read parameter out of .txt file
-                    if path is None the current directory will be used to create a folder inside
-    :return: path of the created folder
-    """
-    if path is None:
-        path = os.getcwd() + '/Repositories'
-    if not os.path.exists(path):
-        os.makedirs(path)
-    return path
-
-
-def download_repo(repo, folder):
-    repo = auth.get_repo(repo)
-    repo_creator = repo.full_name.split('/')[0]
-    os.chdir(folder)
-    folder_name = os.getcwd() + '/' + repo_creator + '_' + repo.name
-    if not os.path.exists(folder_name):
-        os.makedirs(folder_name)
-    os.chdir(folder_name)
-
-    contents = repo.get_contents("")
-    while contents:
-        file_content = contents.pop(0)
-        print(file_content.type)
-        if file_content.type == 'dir':
-            print(file_content)
-            os.makedirs(file_content.path)
-            contents.extend(repo.get_contents(file_content.path))
-        else:
-            print(file_content)
-            try:
-
-                file = open(file_content.path, 'wb')
-                file.write(file_content.decoded_content)
-            except:
-                file = open(file_content.path, 'wb')
-                file.write('could not write file because of unsupported decoding')
-
-
+# ---------------------------------------------------------------------------------------------------------------------#
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     repo_folder = create_folder(None)
     create_database()
-    test_input()
     # query()
-    download_repo('ytmdesktop/ytmdesktop', repo_folder)
+    repo = auth.get_repo('ytmdesktop/ytmdesktop')
+    print(Metric_Commits.commits(repo,  auth, ['create', 'sparkles', 'fadfsdfsafd']))
+    # download_repo('ytmdesktop/ytmdesktop', repo_folder)
