@@ -287,5 +287,7 @@ if __name__ == '__main__':
     create_database()
     # query()
     repo = auth.get_repo('ytmdesktop/ytmdesktop')
-    print(Metric_Commits.commits(repo,  auth, ['create', 'sparkles', 'fadfsdfsafd']))
+    repo = auth.get_repo('PyGithub/PyGithub')
+    # print(Metric_Issues.issues(repo,  auth, ['create', 'sparkles', 'fadfsdfsafd']))
+    print(Metric_StatsCodeFrequency.stats_code_frequency(repo, auth))
     # download_repo('ytmdesktop/ytmdesktop', repo_folder)
