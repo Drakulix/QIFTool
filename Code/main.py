@@ -9,6 +9,7 @@ import json
 import time
 import sqlite3
 import os
+import configparser
 from datetime import datetime
 
 from sqlite3 import Error
@@ -22,12 +23,10 @@ import Metric_Commits  # metric file for Commits
 
 auth = Github("c2c1d13983cbb8c1d9ce7845c20d7937ba7c25a0", per_page=100)
 
-# creates a .txt file in the current directory of the .py file
-config = open('config.txt', 'a')
-
 
 # -------------------------------------------------------------------------------------------------------------------- #
 # the following block of code is part of the database interaction
+
 
 def create_connection(db_file):
     """
@@ -148,6 +147,7 @@ def insert(conn, values):
 # -------------------------------------------------------------------------------------------------------------------- #
 # the following block of code deals with the folder structure and the downloading of the repositories
 
+
 def create_folder(path):
     """
     creates the folder structure the repositories will be written to
@@ -195,7 +195,68 @@ def download_repo(repo, folder):
                 file.write('could not write file because of unsupported decoding')
                 print(e.with_traceback())
 
+
 # -------------------------------------------------------------------------------------------------------------------- #
+# the following block of code deals with the creation and reading of the config file
+
+
+def create_config():
+    config = configparser.ConfigParser()
+    config['DEFAULT'] = {'loops_of_1000s': '1',
+                         '\n'
+                         'issues': 'refactor, debt, rebuild',
+                         'commits': 'refactor, debt, rebuild',
+                         'statscodefrequency_additions': '0',
+                         'statscodefrequency_deletions': '1000',
+                         'statscodefrequency_difference': '0.7',
+                         }
+    config['manual'] = {'loops_of_1000s': '1',
+                        '\n'
+                        'issues': '',
+                        'commits': '',
+                        'statscodefrequency_additions': '0',
+                        'statscodefrequency_deletions': '0',
+                        'statscodefrequency_difference': '0'
+                        }
+    config['mode'] = {'use_default_values': 'yes'}
+    if not (os.path.isfile('config.ini')):
+        with open('config.ini', 'w') as config_file:
+            config.write(config_file)
+
+
+def read_config():
+    values = {
+        'loops_of_1000s': '',
+        'issues': '',
+        'commits': '',
+        'statscodefrequency_additions': '',
+        'statscodefrequency_deletions': '',
+        'statscodefrequency_difference': ''
+    }
+    config = configparser.ConfigParser()
+    config.read('config.ini')
+    use_default_values = config.get('mode', 'use_default_values')
+    if use_default_values == 'yes':
+        values['loops_of_1000s'] = config['DEFAULT']['loops_of_1000s']
+        values['issues'] = config['DEFAULT']['issues']
+        values['commits'] = config['DEFAULT']['commits']
+        values['statscodefrequency_additions'] = config['DEFAULT']['statscodefrequency_additions']
+        values['statscodefrequency_deletions'] = config['DEFAULT']['statscodefrequency_deletions']
+        values['statscodefrequency_difference'] = config['DEFAULT']['statscodefrequency_difference']
+    elif use_default_values == 'no':
+        values['loops_of_1000s'] = config['manual']['loops_of_1000s']
+        values['issues'] = config['manual']['issues']
+        values['commits'] = config['manual']['commits']
+        values['statscodefrequency_additions'] = config['manual']['statscodefrequency_additions']
+        values['statscodefrequency_deletions'] = config['manual']['statscodefrequency_deletions']
+        values['statscodefrequency_difference'] = config['manual']['statscodefrequency_difference']
+    else:
+        print('config.ini uses a wrong syntax. please refer to the documentation for a valid config.ini')
+    return values
+
+
+# -------------------------------------------------------------------------------------------------------------------- #
+
 
 def testhub():
     repo = auth.get_repo("PyGithub/PyGithub")
@@ -252,16 +313,16 @@ def query():
         repo_count += 1
         print(repo_count, repo.size, repo.name, repo.downloads_url)
         values.append(repo.id)  # repo_id
-        values.append(repo.full_name.split('/')[0])     # repo_creator
-        values.append(repo.name)    # repo_name
-        values.append(repo.size)    # repo_size
-        values.append('False')      # downloaded
-        values.append(datetime.date(datetime.now()))    # last_access
+        values.append(repo.full_name.split('/')[0])  # repo_creator
+        values.append(repo.name)  # repo_name
+        values.append(repo.size)  # repo_size
+        values.append('False')  # downloaded
+        values.append(datetime.date(datetime.now()))  # last_access
         scf = Metric_StatsCodeFrequency.stats_code_frequency()
-        values.append(scf[0])   # code_frequency_additions
-        values.append(scf[1])   # code_frequency_deletions
-        values.append(scf[1]/scf[0])    # # code_frequency_difference
-        values.append(Metric_Contributors.contributors())   # contributors
+        values.append(scf[0])  # code_frequency_additions
+        values.append(scf[1])  # code_frequency_deletions
+        values.append(scf[1] / scf[0])  # # code_frequency_difference
+        values.append(Metric_Contributors.contributors())  # contributors
 
         # repo_creator = values[1]
         # repo_name = values[2]
@@ -289,5 +350,7 @@ if __name__ == '__main__':
     repo = auth.get_repo('ytmdesktop/ytmdesktop')
     repo = auth.get_repo('PyGithub/PyGithub')
     # print(Metric_Issues.issues(repo,  auth, ['create', 'sparkles', 'fadfsdfsafd']))
-    print(Metric_StatsCodeFrequency.stats_code_frequency(repo, auth))
+    # print(Metric_StatsCodeFrequency.stats_code_frequency(repo, auth))
     # download_repo('ytmdesktop/ytmdesktop', repo_folder)
+    create_config()
+    print(read_config())
