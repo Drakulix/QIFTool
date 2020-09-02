@@ -2,8 +2,7 @@
 main.py passes over an object as argument of class Repository
 """
 
-import time
-import datetime
+import Reset_sleep
 
 
 def issues(repo, auth, keywords):
@@ -16,41 +15,30 @@ def issues(repo, auth, keywords):
     """
     found_keywords = []
     issues_obj = repo.get_issues(state='all')
-    while True:
-        if auth.get_rate_limit().core.remaining >= 1:
-            for issue in issues_obj:
-                if auth.get_rate_limit().core.remaining >= 1:
-                    # checks if the given list of keywords are all found and then returns immediately
-                    # thus improving runtime and rate_limit usage
-                    if not keywords:
-                        return found_keywords
-                    else:
-                        # checks for each comment if the given words are found. Also inside the title
-                        # if a keyword was found it is removed from the list since it does not have to be found again
-                        # thus also improving runtime for each additional message
-                        found_keywords = read_issues(keywords, found_keywords, issue)
-                else:
-                    if (auth.get_rate_limit().core.reset - datetime.datetime.utcnow()).total_seconds() < 0:
-                        print('Please make sure your time is set correct on your local machine '
-                              '(timezone does not matter) and run the script again')
-                        quit()
-                    else:
-                        time.sleep(int((auth.get_rate_limit().core.reset -
-                                        datetime.datetime.utcnow()).total_seconds()) + 1)
-                        if auth.get_rate_limit().core.remaining >= 1:
-                            found_keywords = read_issues(keywords, found_keywords, issue)
-            break
+    if auth.get_rate_limit().core.remaining <= 0:
+        Reset_sleep.reset_sleep(auth)
+    for issue in issues_obj:
+        if auth.get_rate_limit().core.remaining <= 0:
+            Reset_sleep.reset_sleep(auth)
+        if not keywords:
+            # checks if the given list of keywords are all found and then returns immediately
+            # thus improving runtime and rate_limit usage
+            return found_keywords
         else:
-            if (auth.get_rate_limit().core.reset - datetime.datetime.utcnow()).total_seconds() < 0:
-                print('Please make sure your time is set correct on your local machine '
-                      '(timezone does not matter) and run the script again')
-                quit()
-            else:
-                time.sleep(int((auth.get_rate_limit().core.reset - datetime.datetime.utcnow()).total_seconds()) + 1)
+            found_keywords = read_issues(keywords, found_keywords, issue)
     return found_keywords
 
 
 def read_issues(keywords, found_keywords, issue):
+    """
+    checks for each comment in the given issue if the given words are found. Also inside the title
+    if a keyword was found it is removed from the list since it does not have to be found again
+    thus also improving runtime for each iteration
+    :param keywords: words to look for inside the issue
+    :param found_keywords: list of keywords that have been found
+    :param issue: the issue to be looked into
+    :return: a list consisting of the words that have been found by now
+    """
     for keyword in keywords:
         print(issue.title)
         if keyword.casefold() in issue.title.casefold():

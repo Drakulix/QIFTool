@@ -237,21 +237,18 @@ def read_config():
     config.read('config.ini')
     use_default_values = config.get('mode', 'use_default_values')
     if use_default_values == 'yes':
-        values['loops_of_1000s'] = config['DEFAULT']['loops_of_1000s']
-        values['issues'] = config['DEFAULT']['issues']
-        values['commits'] = config['DEFAULT']['commits']
-        values['statscodefrequency_additions'] = config['DEFAULT']['statscodefrequency_additions']
-        values['statscodefrequency_deletions'] = config['DEFAULT']['statscodefrequency_deletions']
-        values['statscodefrequency_difference'] = config['DEFAULT']['statscodefrequency_difference']
+        read_values = 'DEFAULT'
     elif use_default_values == 'no':
-        values['loops_of_1000s'] = config['manual']['loops_of_1000s']
-        values['issues'] = config['manual']['issues']
-        values['commits'] = config['manual']['commits']
-        values['statscodefrequency_additions'] = config['manual']['statscodefrequency_additions']
-        values['statscodefrequency_deletions'] = config['manual']['statscodefrequency_deletions']
-        values['statscodefrequency_difference'] = config['manual']['statscodefrequency_difference']
+        read_values = 'manual'
     else:
-        print('config.ini uses a wrong syntax. please refer to the documentation for a valid config.ini')
+        print('config.ini uses a wrong syntax. Please refer to the documentation for a valid config.ini')
+        quit()
+    values['loops_of_1000s'] = config[read_values]['loops_of_1000s']
+    values['issues'] = config[read_values]['issues']
+    values['commits'] = config[read_values]['commits']
+    values['statscodefrequency_additions'] = config[read_values]['statscodefrequency_additions']
+    values['statscodefrequency_deletions'] = config[read_values]['statscodefrequency_deletions']
+    values['statscodefrequency_difference'] = config[read_values]['statscodefrequency_difference']
     return values
 
 
@@ -346,11 +343,13 @@ def query():
 if __name__ == '__main__':
     repo_folder = create_folder(None)
     create_database()
-    # query()
+    # print('working on commit:', counter, end='\r', flush=True)
     repo = auth.get_repo('ytmdesktop/ytmdesktop')
     repo = auth.get_repo('PyGithub/PyGithub')
-    # print(Metric_Issues.issues(repo,  auth, ['create', 'sparkles', 'fadfsdfsafd']))
+    # print(Metric_Commits.commits(repo,  auth, ['create', 'sparkles']))
     # print(Metric_StatsCodeFrequency.stats_code_frequency(repo, auth))
     # download_repo('ytmdesktop/ytmdesktop', repo_folder)
+    print(Metric_Contributors.contributors(repo, auth))
     create_config()
     print(read_config())
+    print("done")

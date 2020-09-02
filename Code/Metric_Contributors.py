@@ -2,8 +2,7 @@
 main.py passes over an object as argument of class Repository
 """
 
-import time
-import datetime
+import Reset_sleep
 
 
 def contributors(repo, auth):
@@ -13,15 +12,7 @@ def contributors(repo, auth):
     :param auth: the authentication object that is used to access the current rate-limit
     :return: returns the amount of contributors as an int
     """
-    while True:
-        if auth.get_rate_limit().core.remaining >= 1:
-            con = repo.get_contributors().totalCount
-            break
-        else:
-            if (auth.get_rate_limit().core.reset - datetime.datetime.utcnow()).total_seconds() < 0:
-                print('Please make sure your time is set correct on your local machine '
-                      '(timezone does not matter) and run the script again')
-                quit()
-            else:
-                time.sleep(int((auth.get_rate_limit().core.reset - datetime.datetime.utcnow()).total_seconds()) + 1)
+    if auth.get_rate_limit().core.remaining <= 0:
+        Reset_sleep.reset_sleep(auth)
+    con = repo.get_contributors().totalCount
     return con

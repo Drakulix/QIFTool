@@ -2,8 +2,7 @@
 main.py passes over an object as argument of class Repository
 """
 
-import time
-import datetime
+import Reset_sleep
 
 
 def stats_code_frequency(repo, auth):
@@ -14,20 +13,12 @@ def stats_code_frequency(repo, auth):
     :return: returns a tuple with the first item being the accumulated additions
             and the second the accumulated deletions
     """
-    while True:
-        if auth.get_rate_limit().core.remaining >= 1:
-            scf_obj = repo.get_stats_code_frequency()
-            additions = 0
-            deletions = 0
-            for add_del in scf_obj:
-                additions += add_del.additions
-                deletions += add_del.deletions
-            break
-        else:
-            if (auth.get_rate_limit().core.reset - datetime.datetime.utcnow()).total_seconds() < 0:
-                print('Please make sure your time is set correct on your local machine '
-                      '(timezone does not matter) and run the script again')
-                quit()
-            else:
-                time.sleep(int((auth.get_rate_limit().core.reset - datetime.datetime.utcnow()).total_seconds()) + 1)
+    if auth.get_rate_limit().core.remaining <= 0:
+        Reset_sleep.reset_sleep(auth)
+    scf_obj = repo.get_stats_code_frequency()
+    additions = 0
+    deletions = 0
+    for add_del in scf_obj:
+        additions += add_del.additions
+        deletions += add_del.deletions
     return additions, deletions
