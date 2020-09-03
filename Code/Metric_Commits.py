@@ -23,10 +23,10 @@ def commits(repo, auth, keywords):
         if not keywords:
             # checks if the given list of keywords are all found and then returns immediately
             # thus improving runtime and rate_limit usage
-            return found_keywords
+            return found_keywords, commits_obj.totalCount
         else:
             found_keywords = read_commits(keywords, found_keywords, commit)
-    return found_keywords
+    return found_keywords, commits_obj.totalCount
 
 
 def read_commits(keywords, found_keywords, commit):

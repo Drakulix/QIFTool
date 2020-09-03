@@ -350,6 +350,11 @@ if __name__ == '__main__':
     # print(Metric_StatsCodeFrequency.stats_code_frequency(repo, auth))
     # download_repo('ytmdesktop/ytmdesktop', repo_folder)
     print(Metric_Contributors.contributors(repo, auth))
+    print(repo.get_issues(state='all').totalCount)
+    issues = repo.get_issues(state='all')
+    commits = repo.get_commits().totalCount
+    for issue in issues:
+        print(issue.id, issue.title, issue.comments)
     create_config()
     print(read_config())
     print("done")
