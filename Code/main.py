@@ -4,8 +4,6 @@ installed packages: apt install cURL
                     pip3 install PyGithub
 """
 
-import urllib.request
-import json
 import time
 import sqlite3
 import os
@@ -93,19 +91,36 @@ def create_database(path):
                                                     repo_id integer NOT NULL,
                                                     issue_id integer NOT NULL PRIMARY KEY,
                                                     keywords text NOT NULL,
+                                                    labels text NOT NULL,
                                                     amount_of_comments integer NOT NULL,
                                                     issue_number integer NOT NULL,
                                                     create_date text NOT NULL,
                                                     closed_date text NOT NULL,
-                                                    label_name text NOT NULL,
-                                                    label_description NOT NULL,
                                                     
                                                     FOREIGN KEY (repo_id) REFERENCES repositories (repo_id),
 
-                                                    UNIQUE(repo_id, issue_id, keywords, amount_of_comments, 
-                                                            issue_number, create_date, closed_date, label_name,
-                                                            label_description) ON CONFLICT IGNORE
+                                                    UNIQUE(repo_id, issue_id, keywords, labels, amount_of_comments,
+                                                            issue_number, create_date, closed_date) ON CONFLICT IGNORE
                                                     ); """
+
+        pull_requests_table_statement = """ CREATE TABLE IF NOT EXISTS pull_requests (
+                                                            repo_id integer NOT NULL,
+                                                            pull_request_id integer NOT NULL PRIMARY KEY,
+                                                            pull_request_number integer NOT NULL,
+                                                            keywords text NOT NULL,
+                                                            labels text NOT NULL,
+                                                            amount_of_comments integer NOT NULL,
+                                                            amount_of_commits integer NOT NULL,
+                                                            create_date text NOT NULL,
+                                                            closed_date text NOT NULL,
+
+                                                            FOREIGN KEY (repo_id) REFERENCES repositories (repo_id),
+
+                                                            UNIQUE(repo_id, pull_request_id, pull_request_number, 
+                                                                    keywords, labels, 
+                                                                    amount_of_comments, amount_of_commits, 
+                                                                    create_date, closed_date) ON CONFLICT IGNORE
+                                                            ); """
 
         commits_table_statement = """ CREATE TABLE IF NOT EXISTS commits (
                                                             repo_id integer NOT NULL,
@@ -124,16 +139,14 @@ def create_database(path):
                                                             ); """
         # create the database connection
         conn = create_connection(database)
-    except Error as e:
-        print(e)
 
-    # create the tables if they do not exist yet
-    if conn is not None:
+        # create the tables if they do not exist yet
         create_table(conn, repositories_table_statement)
         create_table(conn, issues_table_statement)
+        create_table(conn, pull_requests_table_statement)
         create_table(conn, commits_table_statement)
-    else:
-        print('Error! Cannot create database connection.')
+    except Error as e:
+        print(e.with_traceback(e.__traceback__))
 
 
 def insert(conn, values):
@@ -144,16 +157,6 @@ def insert(conn, values):
     :return: False
     """
     cursor = conn.cursor()
-    # repo_id = values[0]
-    # repo_creator = values[1]
-    # repo_name = values[2]
-    # repo_size = values[3]
-    # downloaded = values[4]
-    # last_access = values[5]
-    # code_frequency_additions= values[6]
-    # code_frequency_deletions = values[7]
-    # code_frequency_difference = values[8]
-    # contributors = values[9]
     commits = values[10]
     issues = values[11]
     insert_statement_without_lists = """INSERT INTO repositories (repo_id, repo_creator, repo_name, repo_size, 
@@ -238,14 +241,10 @@ def create_config():
     config = configparser.ConfigParser()
     config['DEFAULT'] = {'path_of_database': 'current',
                          'path_of_download': 'current',
-                         'loops_of_1000s': '1',
-                         '\n'
-                         'issues': 'refactor, debt, rebuild',
-                         'commits': 'refactor, debt, rebuild',
-                         'statscodefrequency_additions': '0',
-                         'statscodefrequency_deletions': '1000',
-                         'statscodefrequency_difference': '0.7',
+                         'loops_of_1000s': '1'
                          }
+    config['mode'] = {'use_default_values': 'yes'
+                      }
     config['manual'] = {'path_of_database': r"/home/robert/OSCTool/Code",
                         'path_of_download': r"/home/robert/OSCTool/Code",
                         'loops_of_1000s': '1',
@@ -256,7 +255,6 @@ def create_config():
                         'statscodefrequency_deletions': '0',
                         'statscodefrequency_difference': '0'
                         }
-    config['mode'] = {'use_default_values': 'yes'}
     if not (os.path.isfile('config.ini')):
         with open('config.ini', 'w') as config_file:
             config.write(config_file)
@@ -444,7 +442,7 @@ if __name__ == '__main__':
 
     # print('working on commit:', counter, end='\r', flush=True)
     repo = auth.get_repo('ytmdesktop/ytmdesktop')
-    # repo = auth.get_repo('PyGithub/PyGithub')
+    repo = auth.get_repo('PyGithub/PyGithub')
     # print(Metric_Commits.commits(repo,  auth, ['create', 'sparkles']))
     # print(Metric_StatsCodeFrequency.stats_code_frequency(repo, auth))
     # download_repo('ytmdesktop/ytmdesktop', repo_folder)
@@ -452,6 +450,18 @@ if __name__ == '__main__':
     print(repo.get_issues(state='all').totalCount)
     issues = repo.get_issues(state='all')
     commits = repo.get_commits()
-    for commit in commits:
-        print(commit.sha, commit.author.id, commit.author.name, commit.committer, commit.author.login, repo.full_name, \
-           commit.stats.additions, commit.stats.deletions)
+    for pull in repo.get_pulls():
+        print('# -----------------------------------------#')
+        print(pull.title, pull.additions, pull.deletions)
+        for label in pull.labels:
+            print(label.name)
+        print('# -----------------------------------------#')
+        print(pull.body)
+        print('# ====================================================================================================#')
+        for comment in pull.get_comments():
+            print(comment.body)
+        print('# ====================================================================================================#')
+        print('# --------------------------------------------------------------------------------------------------#\n')
+    # for commit in commits:
+    #     print(commit.sha, commit.author.id, commit.author.name, commit.committer, commit.author.login, repo.full_name, \
+    #        commit.stats.additions, commit.stats.deletions)

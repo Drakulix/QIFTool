@@ -33,6 +33,9 @@ def read_issue(keywords, issue):
     :return: the corresponding issue ID, the amount of comments the issue has and keywords_in_issue
     """
     keywords_in_issue = []
+    label_list = []
+    for label in issue.labels:
+        label_list.append(label.name)
     for keyword in keywords:
         if keyword.casefold() in issue.title.casefold():
             keywords_in_issue.append(keyword)
@@ -41,5 +44,4 @@ def read_issue(keywords, issue):
                 if keyword.casefold() in issue_comment.body.casefold():
                     keywords_in_issue.append(keyword)
                     break
-    return issue.id, keywords_in_issue, issue.comments, issue.number, issue.created_at, issue.closed_at, \
-           issue.label.name, issue.label.description
+    return issue.id, keywords_in_issue, label_list, issue.comments, issue.number, issue.created_at, issue.closed_at
