@@ -19,10 +19,6 @@ import Metric_Contributors  # metric file for Contributors
 import Metric_Issues  # metric file for Issues
 import Metric_Commits  # metric file for Commits
 
-# authentication of REST API v3
-
-auth = Github("c2c1d13983cbb8c1d9ce7845c20d7937ba7c25a0", per_page=100)
-
 
 # -------------------------------------------------------------------------------------------------------------------- #
 # the following block of code is part of the database interaction
@@ -57,18 +53,20 @@ def create_table(conn, create_table_statement):
         print(e)
 
 
-def create_database():
+def create_database(path):
     """
     creates the database file and tables
     :return: False
     """
     # choose path for the database to be created at or none if you want the database to be created in
-    # the current directory
+    # the current directory of the main.py
     try:
-        database = r"/home/robert/OSCTool/Code/OSCTool.db"
-        repository_table_statement = """ CREATE TABLE IF NOT EXISTS repositories (
-                                            id integer NOT NULL PRIMARY KEY,
-                                            repo_id integer NOT NULL,
+        if path == 'current':
+            database = os.getcwd() + '/OSCTool.db'
+        else:
+            database = path + '/OSCTool.db'
+        repositories_table_statement = """ CREATE TABLE IF NOT EXISTS repositories (
+                                            repo_id integer NOT NULL PRIMARY KEY,
                                             repo_creator text NOT NULL,
                                             repo_name text NOT NULL,
                                             repo_size integer NOT NULL,
@@ -90,14 +88,50 @@ def create_database():
                                                     code_frequency_difference,
                                                     contributors, commits, issues) ON CONFLICT IGNORE
                                             ); """
+
+        issues_table_statement = """ CREATE TABLE IF NOT EXISTS issues (
+                                                    repo_id integer NOT NULL,
+                                                    issue_id integer NOT NULL PRIMARY KEY,
+                                                    keywords text NOT NULL,
+                                                    amount_of_comments integer NOT NULL,
+                                                    issue_number integer NOT NULL,
+                                                    create_date text NOT NULL,
+                                                    closed_date text NOT NULL,
+                                                    label_name text NOT NULL,
+                                                    label_description NOT NULL,
+                                                    
+                                                    FOREIGN KEY (repo_id) REFERENCES repositories (repo_id),
+
+                                                    UNIQUE(repo_id, issue_id, keywords, amount_of_comments, 
+                                                            issue_number, create_date, closed_date, label_name,
+                                                            label_description) ON CONFLICT IGNORE
+                                                    ); """
+
+        commits_table_statement = """ CREATE TABLE IF NOT EXISTS commits (
+                                                            repo_id integer NOT NULL,
+                                                            commit_id integer NOT NULL PRIMARY KEY,
+                                                            keywords text NOT NULL,
+                                                            commit_author_id integer NOT NULL,
+                                                            commit_author_name text NOT NULL,
+                                                            commit_additions integer NOT NULL,
+                                                            commit_deletions integer NOT NULL,
+
+                                                            FOREIGN KEY (repo_id) REFERENCES repositories (repo_id),
+
+                                                            UNIQUE(repo_id,commit_id, keywords, 
+                                                            commit_author_id, commit_author_name, 
+                                                            commit_additions, commit_deletions) ON CONFLICT IGNORE
+                                                            ); """
         # create the database connection
         conn = create_connection(database)
     except Error as e:
         print(e)
 
-    # create the repositories table if it does not exist yet
+    # create the tables if they do not exist yet
     if conn is not None:
-        create_table(conn, repository_table_statement)
+        create_table(conn, repositories_table_statement)
+        create_table(conn, issues_table_statement)
+        create_table(conn, commits_table_statement)
     else:
         print('Error! Cannot create database connection.')
 
@@ -148,23 +182,23 @@ def insert(conn, values):
 # the following block of code deals with the folder structure and the downloading of the repositories
 
 
-def create_folder(path):
+def create_download_folder(path):
     """
     creates the folder structure the repositories will be written to
-    :param path: TODO make it work via read parameter out of .txt file
-                    if path is None the current directory will be used to create a folder inside
+    :param path: path for the folder to be created at
     :return: path of the created folder
     """
-    if path is None:
+    if path == 'current':
         path = os.getcwd() + '/repositories'
     if not os.path.exists(path):
         os.makedirs(path)
     return path
 
 
-def download_repo(repo, folder):
+def download_repo(auth, repo, folder):
     """
     function to download the repo as it is seen in github with the folder structure intact
+    :param auth: authentication object to perform necessary calls
     :param repo: repository object to download
     :param folder: path of the folder where the repository will be dowloaded in
     :return: False
@@ -202,7 +236,9 @@ def download_repo(repo, folder):
 
 def create_config():
     config = configparser.ConfigParser()
-    config['DEFAULT'] = {'loops_of_1000s': '1',
+    config['DEFAULT'] = {'path_of_database': 'current',
+                         'path_of_download': 'current',
+                         'loops_of_1000s': '1',
                          '\n'
                          'issues': 'refactor, debt, rebuild',
                          'commits': 'refactor, debt, rebuild',
@@ -210,7 +246,9 @@ def create_config():
                          'statscodefrequency_deletions': '1000',
                          'statscodefrequency_difference': '0.7',
                          }
-    config['manual'] = {'loops_of_1000s': '1',
+    config['manual'] = {'path_of_database': r"/home/robert/OSCTool/Code",
+                        'path_of_download': r"/home/robert/OSCTool/Code",
+                        'loops_of_1000s': '1',
                         '\n'
                         'issues': '',
                         'commits': '',
@@ -235,32 +273,41 @@ def read_config():
     }
     config = configparser.ConfigParser()
     config.read('config.ini')
+    config_mode = read_config_mode(config)
+    values['loops_of_1000s'] = config[config_mode]['loops_of_1000s']
+    values['issues'] = config[config_mode]['issues']
+    values['commits'] = config[config_mode]['commits']
+    values['statscodefrequency_additions'] = config[config_mode]['statscodefrequency_additions']
+    values['statscodefrequency_deletions'] = config[config_mode]['statscodefrequency_deletions']
+    values['statscodefrequency_difference'] = config[config_mode]['statscodefrequency_difference']
+    return values
+
+
+def read_config_mode(config):
+    """
+    function to read out which section should be used for the following instructions
+    :param config: config object used to access the config file
+    :return:
+    """
     use_default_values = config.get('mode', 'use_default_values')
     if use_default_values == 'yes':
-        read_values = 'DEFAULT'
+        return 'DEFAULT'
     elif use_default_values == 'no':
-        read_values = 'manual'
+        return 'manual'
     else:
         print('config.ini uses a wrong syntax. Please refer to the documentation for a valid config.ini')
         quit()
-    values['loops_of_1000s'] = config[read_values]['loops_of_1000s']
-    values['issues'] = config[read_values]['issues']
-    values['commits'] = config[read_values]['commits']
-    values['statscodefrequency_additions'] = config[read_values]['statscodefrequency_additions']
-    values['statscodefrequency_deletions'] = config[read_values]['statscodefrequency_deletions']
-    values['statscodefrequency_difference'] = config[read_values]['statscodefrequency_difference']
-    return values
 
 
 # -------------------------------------------------------------------------------------------------------------------- #
 
 
-def testhub():
+def testhub(auth):
     repo = auth.get_repo("PyGithub/PyGithub")
     print(repo.get_topics())
 
 
-def search():
+def search(auth):
     """
     repo = auth.search_repositories(query='spotify')
     for i in range(0, 15):
@@ -298,7 +345,7 @@ def search():
     repo_first = repo[0]
 
 
-def query():
+def query(auth):
     """
     test function to see what repositories will be looked up by searching for it
     :return:
@@ -339,22 +386,72 @@ def query():
 
 
 # ---------------------------------------------------------------------------------------------------------------------#
+
+
+def reset_sleep(auth):
+    """
+    function that sleeps for a given time to await the next rate-limit reset which is calculated by taking the reset
+    date and subtracting the current date to get a date difference
+    :param auth: auth object to access the rate-limits
+    :return: False
+    """
+    try:
+        waiting_sec = int((auth.get_rate_limit().core.reset - datetime.datetime.utcnow()).total_seconds()) + 1
+        local_reset_time = datetime.datetime.fromtimestamp(float(auth.get_rate_limit().core.reset.strftime("%s")),
+                                                           datetime.datetime.now().astimezone().tzinfo)
+
+        print('OSCTool waits', waiting_sec,
+              'seconds for the next rate-limit reset and will be done at around', local_reset_time)
+        time.sleep(waiting_sec)
+    except Exception as e:
+        print(str(e))
+        print('Please make sure your time is set correct on your local machine '
+              '(timezone does not matter) and run the script again')
+        quit()
+
+
+# ---------------------------------------------------------------------------------------------------------------------#
+
+
+def initialize():
+    """
+    function that creates all mandatory infrastructure for the tool to work
+    :return: the auth
+    """
+    # authentication of REST API v3
+    auth = Github("c2c1d13983cbb8c1d9ce7845c20d7937ba7c25a0", per_page=100)
+    # create the config file if it does not exist yet to base on all following instructions
+    create_config()
+    # read out necessary metadata off the config file
+    config = configparser.ConfigParser()
+    config.read('config.ini')
+    config_mode = read_config_mode(config)
+    database_path = config.get(config_mode, 'path_of_database')
+    download_path = config.get(config_mode, 'path_of_download')
+    # create the database if it does not exist yet with the given path from the config file
+    create_database(database_path)
+    # create the folder structure for the repositories to download if it does not exist yet
+    # with the given path from the config file
+    create_download_folder(download_path)
+    return auth
+
+
+# ---------------------------------------------------------------------------------------------------------------------#
+
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    repo_folder = create_folder(None)
-    create_database()
+    auth = initialize()
+
     # print('working on commit:', counter, end='\r', flush=True)
     repo = auth.get_repo('ytmdesktop/ytmdesktop')
-    repo = auth.get_repo('PyGithub/PyGithub')
+    # repo = auth.get_repo('PyGithub/PyGithub')
     # print(Metric_Commits.commits(repo,  auth, ['create', 'sparkles']))
     # print(Metric_StatsCodeFrequency.stats_code_frequency(repo, auth))
     # download_repo('ytmdesktop/ytmdesktop', repo_folder)
     print(Metric_Contributors.contributors(repo, auth))
     print(repo.get_issues(state='all').totalCount)
     issues = repo.get_issues(state='all')
-    commits = repo.get_commits().totalCount
-    for issue in issues:
-        print(issue.id, issue.title, issue.comments)
-    create_config()
-    print(read_config())
-    print("done")
+    commits = repo.get_commits()
+    for commit in commits:
+        print(commit.sha, commit.author.id, commit.author.name, commit.committer, commit.author.login, repo.full_name, \
+           commit.stats.additions, commit.stats.deletions)

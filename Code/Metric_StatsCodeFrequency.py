@@ -2,8 +2,6 @@
 main.py passes over an object as argument of class Repository
 """
 
-import Reset_sleep
-
 
 def stats_code_frequency(repo, auth):
     """
@@ -13,8 +11,9 @@ def stats_code_frequency(repo, auth):
     :return: returns a tuple with the first item being the accumulated additions
             and the second the accumulated deletions
     """
+    from main import reset_sleep
     if auth.get_rate_limit().core.remaining <= 0:
-        Reset_sleep.reset_sleep(auth)
+        reset_sleep(auth)
     scf_obj = repo.get_stats_code_frequency()
     additions = 0
     deletions = 0
