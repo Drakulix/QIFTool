@@ -2,6 +2,7 @@
 main.py passes over an object as argument of class Repository
 """
 
+import datetime
 
 def issues(repo, auth, keywords):
     """
@@ -13,6 +14,7 @@ def issues(repo, auth, keywords):
     """
     from main import reset_sleep
     found_keywords_in_issues = []
+    unique_keywords_in_issues = []
     issues_obj = repo.get_issues(state='all')
     if auth.get_rate_limit().core.remaining <= 0:
         reset_sleep(auth)
@@ -20,8 +22,14 @@ def issues(repo, auth, keywords):
         if auth.get_rate_limit().core.remaining <= 0:
             reset_sleep(auth)
         else:
-            found_keywords_in_issues.append(read_issue(keywords, issue))
-    return found_keywords_in_issues
+            issue_result = read_issue(keywords, issue)
+            if issue_result is not None:
+                found_keywords_in_issues.append(issue_result)
+                print(issue_result)
+                for keyword in issue_result[1]:
+                    if keyword not in unique_keywords_in_issues:
+                        unique_keywords_in_issues.append(keyword)
+    return found_keywords_in_issues, unique_keywords_in_issues
 
 
 def read_issue(keywords, issue):
@@ -44,4 +52,7 @@ def read_issue(keywords, issue):
                 if keyword.casefold() in issue_comment.body.casefold():
                     keywords_in_issue.append(keyword)
                     break
-    return issue.id, keywords_in_issue, label_list, issue.comments, issue.number, issue.created_at, issue.closed_at
+    if not keywords_in_issue:
+        return None
+    else:
+        return issue.id, keywords_in_issue, label_list, issue.comments, issue.number, issue.created_at, issue.closed_at

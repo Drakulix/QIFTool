@@ -13,6 +13,7 @@ def pull_requests(repo, auth, keywords):
     """
     from main import reset_sleep
     found_keywords_in_pull_request = []
+    unique_keywords_in_pull_request = []
     pull_request_obj = repo.get_pulls()
     if auth.get_rate_limit().core.remaining <= 0:
         reset_sleep(auth)
@@ -20,8 +21,14 @@ def pull_requests(repo, auth, keywords):
         if auth.get_rate_limit().core.remaining <= 0:
             reset_sleep(auth)
         else:
-            found_keywords_in_pull_request.append(read_pull(keywords, pull))
-    return found_keywords_in_pull_request
+            pull_result = read_pull(keywords, pull)
+            if pull_result is not None:
+                found_keywords_in_pull_request.append(pull_result)
+                print(pull_result)
+                for keyword in pull_result[1]:
+                    if keyword not in unique_keywords_in_pull_request:
+                        unique_keywords_in_pull_request.append(keyword)
+    return found_keywords_in_pull_request, unique_keywords_in_pull_request
 
 
 def read_pull(keywords, pull):
@@ -46,5 +53,8 @@ def read_pull(keywords, pull):
                 if keyword.casefold() in pull_comment.body.casefold():
                     keywords_in_pull_request.append(keyword)
                     break
-    return pull.id, pull.number, keywords_in_pull_request, label_list, pull.comments, pull.commits, pull.created_at, \
-           pull.closed_at, pull.additions, pull.deletions
+    if not keywords_in_pull_request:
+        return None
+    else:
+        return pull.id, keywords_in_pull_request, pull.number, label_list, pull.comments, pull.commits, \
+               pull.created_at, pull.closed_at, pull.additions, pull.deletions
