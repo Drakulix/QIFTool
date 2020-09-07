@@ -2,7 +2,6 @@
 main.py passes over an object as argument of class Repository
 """
 
-import datetime
 
 def issues(repo, auth, keywords):
     """
@@ -55,4 +54,10 @@ def read_issue(keywords, issue):
     if not keywords_in_issue:
         return None
     else:
-        return issue.id, keywords_in_issue, label_list, issue.comments, issue.number, issue.created_at, issue.closed_at
+        if issue.closed_at is None:
+            return issue.id, keywords_in_issue, label_list, issue.comments, issue.number, \
+                   issue.created_at.strftime(str(issue.created_at.date())), issue.closed_at
+        else:
+            return issue.id, keywords_in_issue, label_list, issue.comments, issue.number, \
+                   issue.created_at.strftime(str(issue.created_at.date())), \
+                   issue.closed_at.strftime(str(issue.created_at.date()))

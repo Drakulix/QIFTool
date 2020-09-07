@@ -56,5 +56,11 @@ def read_pull(keywords, pull):
     if not keywords_in_pull_request:
         return None
     else:
-        return pull.id, keywords_in_pull_request, pull.number, label_list, pull.comments, pull.commits, \
-               pull.created_at, pull.closed_at, pull.additions, pull.deletions
+        if pull.closed_at is None:
+            return pull.id, keywords_in_pull_request, pull.number, label_list, pull.comments, pull.commits, \
+                   pull.created_at.strftime(str(pull.created_at.date())), pull.closed_at, \
+                   pull.additions, pull.deletions
+        else:
+            return pull.id, keywords_in_pull_request, pull.number, label_list, pull.comments, pull.commits, \
+                   pull.created_at.strftime(str(pull.created_at.date())), \
+                   pull.closed_at.strftime(str(pull.created_at.date())), pull.additions, pull.deletions

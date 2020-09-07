@@ -498,8 +498,8 @@ def initialize():
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     auth = initialize()
-
     repo = auth.get_repo('ytmdesktop/ytmdesktop')
+    # repo.get_issue(234234).created_at.strftime(str)
     # repo = auth.get_repo('PyGithub/PyGithub')
 
     testhub(auth, repo)
