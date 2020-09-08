@@ -13,5 +13,5 @@ def contributors(repo, auth):
     from main import reset_sleep
     if auth.get_rate_limit().core.remaining <= 0:
         reset_sleep(auth)
-    con = repo.get_contributors().totalCount
-    return con
+    cons = repo.get_contributors().totalCount
+    return cons

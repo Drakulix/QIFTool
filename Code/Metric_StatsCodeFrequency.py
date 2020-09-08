@@ -20,4 +20,4 @@ def stats_code_frequency(repo, auth):
     for add_del in scf_obj:
         additions += add_del.additions
         deletions += add_del.deletions
-    return additions, deletions
+    return additions, deletions.__abs__()

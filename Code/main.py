@@ -183,8 +183,6 @@ def insert(conn, table, values):
                                                     VALUES (?, ?, ?, ?, ?, ?); """
     elif table == 'commits_keywords':
         insert_statement = """INSERT INTO commits (keywords) VALUES (?); """
-    elif table == 'commits_labels':
-        insert_statement = """INSERT INTO commits (labels) VALUES (?); """
     # ---------------------------------------------------------------------------------------------------------------- #
     elif table == 'issues':
         insert_statement = """INSERT INTO issues (repo_id, issue_id, issue_number, amount_of_comments,
@@ -276,11 +274,13 @@ def create_config():
     config = configparser.ConfigParser()
     config['DEFAULT'] = {'path_of_database': 'current',
                          'path_of_download': 'current',
-                         'loops_of_1000s': '1'
+                         'loops_of_1000s': '1',
+                         'size': "0..10000"
                          }
     config['manual'] = {'path_of_database': r"/home/robert/OSCTool/Code",
                         'path_of_download': r"/home/robert/OSCTool/Code",
                         'loops_of_1000s': '1',
+                        'size': '500'
                         }
     config['mode'] = {'use_default_values': 'yes'
                       }
@@ -300,6 +300,7 @@ def create_config():
 def read_config():
     values = {
         'loops_of_1000s': '',
+        'size': '',
         'issues': '',
         'commits': '',
         'pull_requests': '',
@@ -312,6 +313,7 @@ def read_config():
     config.read('config.ini')
     config_mode = read_config_mode(config)
     values['loops_of_1000s'] = config[config_mode]['loops_of_1000s']
+    values['size'] = config[config_mode]['size']
     values['issues'] = config['metric_values']['issues'].split('\t')
     values['commits'] = config['metric_values']['commits'].split('\t')
     values['pull_requests'] = config['metric_values']['pull_requests'].split('\t')
@@ -341,27 +343,109 @@ def read_config_mode(config):
 # -------------------------------------------------------------------------------------------------------------------- #
 
 
-def testhub(auth, repo):
-    repo_values = []
+def metric_search(auth, repo):
     config_values = read_config()
     commits_keywords = config_values['commits']
     issues_keywords = config_values['issues']
     pull_requests_keywords = config_values['pull_requests']
+    print(config_values['size'])
 
     print(commits_keywords)
     print(issues_keywords)
     print(pull_requests_keywords)
 
-    # commits_results = Metric_Commits.commits(repo, auth, commits_keywords)
-    issues_results = Metric_Issues.issues(repo, auth, issues_keywords)
-    pull_requests_results = Metric_PullRequests.pull_requests(repo, auth, pull_requests_keywords)
-
-    # print(commits_results)
+    print(auth.get_rate_limit())
+    commits_results = Metric_Commits.commits(repo, auth, commits_keywords)
+    print(commits_results)
     print('# ------------------------------------------------------------------------------------------------------- #')
+    print(auth.get_rate_limit())
+    issues_results = Metric_Issues.issues(repo, auth, issues_keywords)
     print(issues_results)
     print('# ------------------------------------------------------------------------------------------------------- #')
+    print(auth.get_rate_limit())
+    pull_requests_results = Metric_PullRequests.pull_requests(repo, auth, pull_requests_keywords)
     print(pull_requests_results)
     print('# ------------------------------------------------------------------------------------------------------- #')
+    print(auth.get_rate_limit())
+    contributors_results = Metric_Contributors.contributors(repo, auth)
+    print(contributors_results)
+    print('# ------------------------------------------------------------------------------------------------------- #')
+    print(auth.get_rate_limit())
+    scf_results = Metric_StatsCodeFrequency.stats_code_frequency(repo, auth)
+    print(scf_results)
+    print('# ------------------------------------------------------------------------------------------------------- #')
+
+    return commits_results, issues_results, pull_requests_results, contributors_results, scf_results
+
+
+def repo_search(auth, database, loops_of1000s, size):
+    """
+    very bottom layer of searching for repositories and getting their metadata and inserts them into the database
+    :param loops_of1000s: the number of iterations of random repository searches. Each iteration outputs 1000 repos.
+    :param size: size of found repositories (in kB).
+                 Can be a range for random repositories or a single value for fixed order of found repsositories
+    :param auth: authentication objectt to access the api
+    :param database: path to the database to know where to insert information to
+    :return:
+    """
+    # TODO build rate limit robustness
+    if ".." not in size:
+        loops_of1000s = 1
+    for i in range(int(loops_of1000s)):
+        print('before search query: ', auth.get_rate_limit())
+        repositories = auth.search_repositories(query=size)
+        print('after search query: ', auth.get_rate_limit())
+        for repo in repositories:
+            print('each repo: ', auth.get_rate_limit())
+            repo_id = repo.id
+            repo_creator = repo.full_name.split('/')[0]
+            repo_name = repo.full_name.split('/')[1]
+            repo_size = repo.size
+            downloaded = False
+            last_access = str(datetime.datetime.now().date())
+
+            metric_results = metric_search(auth, repo)
+
+            commits_results = metric_results[0]
+            commits_results_keywords = metric_results[0][1]
+
+            issues_results = metric_results[1]
+            issues_results_keywords = metric_results[1][0]
+            issues_results_labels = metric_results[1][1]
+
+            pull_request_results = metric_results[2]
+            pull_request_results_keywords = metric_results[2][0]
+            pull_request_results_labels = metric_results[2][1]
+
+            contributors_results = metric_results[3]
+
+            statscodefrequency_results_additions = metric_results[4][0]
+            statscodefrequency_results_deletions = metric_results[4][1]
+
+            try:
+                conn = create_connection(database)
+                insert(conn, 'repositories', (repo_id, repo_creator, repo_name, repo_size, downloaded, last_access,
+                                              statscodefrequency_results_additions, statscodefrequency_results_deletions,
+                                              statscodefrequency_results_deletions/statscodefrequency_results_additions,
+                                              contributors_results))
+                insert(conn, 'repositories_commits', commits_results_keywords)
+                insert(conn, 'repositories_issues', issues_results_keywords)
+                insert(conn, 'repositories_pull_requests', pull_request_results_keywords)
+
+                insert(conn, 'commits', commits_results.remove(commits_results_keywords))
+                insert(conn, 'commits_keywords', commits_results_keywords)
+
+                insert(conn, 'issues', issues_results.remove(issues_results_keywords).remove(issues_results_labels))
+                insert(conn, 'issues_keywords', issues_results_keywords)
+                insert(conn, 'issues_labels', issues_results_labels)
+
+                insert(conn, 'pull_requests',
+                       pull_request_results.remove(issues_results_keywords).remove(pull_request_results_labels))
+                insert(conn, 'pull_requests_keywords', pull_request_results_keywords)
+                insert(conn, 'pull_requests_labels', pull_request_results_labels)
+                conn.close()
+            except Exception as e:
+                print(e.with_traceback(e.__traceback__))
 
 
 def search(auth):
@@ -490,16 +574,20 @@ def initialize():
     # create the folder structure for the repositories to download if it does not exist yet
     # with the given path from the config file
     create_download_folder(download_path)
-    return auth
+    return auth, database_path
 
 
 # ---------------------------------------------------------------------------------------------------------------------#
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    auth = initialize()
-    repo = auth.get_repo('ytmdesktop/ytmdesktop')
+    auth = initialize()[0]
+    # repo = auth.get_repo('ytmdesktop/ytmdesktop')
     # repo.get_issue(234234).created_at.strftime(str)
-    # repo = auth.get_repo('PyGithub/PyGithub')
+    repo = auth.get_repo('PyGithub/PyGithub')
+    # pulls = repo.get_pulls()
+    # for pull in pulls
+    #     pull_get_comments = pull.get_comments()
+    #     pull_commments = pull_get_comments.totalCount
 
-    testhub(auth, repo)
+    metric_search(auth, repo)
