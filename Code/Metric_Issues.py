@@ -32,7 +32,10 @@ def issues(repo, auth, keywords):
             for label in issue_result[2]:
                 if label not in unique_labels_in_issues:
                     unique_labels_in_issues.append(keyword)
-    return found_keywords_in_issues, unique_keywords_in_issues, unique_labels_in_issues
+    if not found_keywords_in_issues:
+        return None
+    else:
+        return found_keywords_in_issues, unique_keywords_in_issues, unique_labels_in_issues
 
 
 def read_issue(keywords, issue, auth):

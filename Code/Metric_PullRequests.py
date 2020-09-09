@@ -26,14 +26,16 @@ def pull_requests(repo, auth, keywords):
         pull_result = read_pull(keywords, pull, auth)
         if pull_result is not None:
             found_keywords_in_pull_request.append(pull_result)
-            print(pull_result)
             for keyword in pull_result[1]:
                 if keyword not in unique_keywords_in_pull_request:
                     unique_keywords_in_pull_request.append(keyword)
             for label in pull_result[2]:
                 if label not in unique_labels_in_pull_request:
                     unique_labels_in_pull_request.append(keyword)
-    return found_keywords_in_pull_request, unique_keywords_in_pull_request, unique_labels_in_pull_request
+    if not found_keywords_in_pull_request:
+        return None
+    else:
+        return found_keywords_in_pull_request, unique_keywords_in_pull_request, unique_labels_in_pull_request
 
 
 def read_pull(keywords, pull, auth):

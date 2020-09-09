@@ -19,25 +19,24 @@ def commits(repo, auth, keywords):
         reset_sleep(auth)
     counter = 1
     for commit in commits_obj:
-        print(counter, commit.sha, auth.get_rate_limit().core.remaining)
         counter += 1
         if auth.get_rate_limit().core.remaining <= 0:
             reset_sleep(auth)
-        commit_result = read_commit(keywords, commit, auth)
+        commit_result = read_commit(keywords, commit)
         if commit_result is not None:
             found_keywords_in_commits.append(commit_result)
-            print(commit_result)
             for keyword in commit_result[1]:
                 if keyword not in unique_keywords_in_commits:
                     unique_keywords_in_commits.append(keyword)
-        print('\n')
-    return found_keywords_in_commits, unique_keywords_in_commits
+    if not found_keywords_in_commits:
+        return None
+    else:
+        return found_keywords_in_commits, unique_keywords_in_commits
 
 
-def read_commit(keywords, commit, auth):
+def read_commit(keywords, commit):
     keywords_in_commit = []
     for keyword in keywords:
-        print(keyword, auth.get_rate_limit().core.remaining)
         if keyword.casefold() in commit.commit.message.casefold():
             keywords_in_commit.append(keyword)
     if not keywords_in_commit:
