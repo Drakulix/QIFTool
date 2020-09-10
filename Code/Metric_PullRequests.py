@@ -12,7 +12,7 @@ def pull_requests(repo, auth, keywords):
     :return: returns a list of keywords as strings that were found in the issues and its comments
     """
     from main import reset_sleep
-    found_keywords_in_pull_request = []
+    pull_request_list = []
     unique_keywords_in_pull_request = []
     unique_labels_in_pull_request = []
     pull_request_obj = repo.get_pulls()
@@ -23,23 +23,23 @@ def pull_requests(repo, auth, keywords):
         counter += 1
         if auth.get_rate_limit().core.remaining <= 0:
             reset_sleep(auth)
-        pull_result = read_pull(keywords, pull, auth)
+        pull_result = read_pull(keywords, pull, auth, repo.id)
         if pull_result is not None:
-            found_keywords_in_pull_request.append(pull_result)
-            for keyword in pull_result[1]:
+            pull_request_list.append(pull_result)
+            for keyword in pull_result[2]:
                 if keyword not in unique_keywords_in_pull_request:
                     unique_keywords_in_pull_request.append(keyword)
-            for label in pull_result[2]:
+            for label in pull_result[3]:
                 if label not in unique_labels_in_pull_request:
                     unique_labels_in_pull_request.append(keyword)
-    if not found_keywords_in_pull_request:
+    if not pull_request_list:
         return pull_request_obj.totalCount
     else:
-        return found_keywords_in_pull_request, unique_keywords_in_pull_request, unique_labels_in_pull_request, \
-               pull_request_obj.totalCount
+        return [pull_request_list, unique_keywords_in_pull_request, unique_labels_in_pull_request,
+                pull_request_obj.totalCount]
 
 
-def read_pull(keywords, pull, auth):
+def read_pull(keywords, pull, auth, repo_id):
     """
     checks for each title, body and comments in the given pull request for the given keywords
     if a keyword was found it is written inside a list
@@ -76,12 +76,10 @@ def read_pull(keywords, pull, auth):
         return None
     else:
         if pull.closed_at is None:
-            return pull.id, keywords_in_pull_request, label_list, pull.number, pull.comments, pull.commits, \
-                   pull.additions, pull.deletions, \
-                   pull.created_at.strftime(str(pull.created_at.date())), 'NA'
+            return [repo_id, pull.id, keywords_in_pull_request, label_list, pull.number, pull.comments, pull.commits,
+                    pull.additions, pull.deletions, pull.created_at.strftime(str(pull.created_at.date())), 'NA']
 
         else:
-            return pull.id, keywords_in_pull_request, label_list, pull.number, pull.comments, pull.commits, \
-                   pull.additions, pull.deletions, \
-                   pull.created_at.strftime(str(pull.created_at.date())), \
-                   pull.closed_at.strftime(str(pull.closed_at.date()))
+            return [repo_id, pull.id, keywords_in_pull_request, label_list, pull.number, pull.comments, pull.commits,
+                    pull.additions, pull.deletions, pull.created_at.strftime(str(pull.created_at.date())),
+                    pull.closed_at.strftime(str(pull.closed_at.date()))]

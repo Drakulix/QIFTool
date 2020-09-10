@@ -12,7 +12,7 @@ def commits(repo, auth, keywords):
     :return: returns a list of keywords as strings that were found in the commits
     """
     from main import reset_sleep
-    found_keywords_in_commits = []
+    commits_list = []
     unique_keywords_in_commits = []
     commits_obj = repo.get_commits()
     if auth.get_rate_limit().core.remaining <= 0:
@@ -22,19 +22,19 @@ def commits(repo, auth, keywords):
         counter += 1
         if auth.get_rate_limit().core.remaining <= 0:
             reset_sleep(auth)
-        commit_result = read_commit(keywords, commit)
+        commit_result = read_commit(keywords, commit, repo.id)
         if commit_result is not None:
-            found_keywords_in_commits.append(commit_result)
-            for keyword in commit_result[1]:
+            commits_list.append(commit_result)
+            for keyword in commit_result[2]:
                 if keyword not in unique_keywords_in_commits:
                     unique_keywords_in_commits.append(keyword)
-    if not found_keywords_in_commits:
+    if not commits_list:
         return commits_obj.totalCount
     else:
-        return found_keywords_in_commits, unique_keywords_in_commits, commits_obj.totalCount
+        return [commits_list, unique_keywords_in_commits, commits_obj.totalCount]
 
 
-def read_commit(keywords, commit):
+def read_commit(keywords, commit, repo_id):
     keywords_in_commit = []
     for keyword in keywords:
         if keyword.casefold() in commit.commit.message.casefold():
@@ -42,9 +42,9 @@ def read_commit(keywords, commit):
     if not keywords_in_commit:
         return None
     else:
-        if commit.author is not None:
-            return commit.sha, keywords_in_commit, commit.author.id, commit.author.login, \
-                   commit.stats.additions, commit.stats.deletions
+        if commit.author is None:
+            return [repo_id, commit.sha, keywords_in_commit, 0, 'NA', commit.stats.additions, commit.stats.deletions]
+
         else:
-            return commit.sha, keywords_in_commit, 0, 'NA', \
-                   commit.stats.additions, commit.stats.deletions
+            return [repo_id, commit.sha, keywords_in_commit, commit.author.id, commit.author.login,
+                    commit.stats.additions, commit.stats.deletions]

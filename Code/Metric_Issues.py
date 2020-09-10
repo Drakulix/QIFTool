@@ -12,7 +12,7 @@ def issues(repo, auth, keywords):
     :return: returns a list of keywords as strings that were found in the issues and its comments
     """
     from main import reset_sleep
-    found_keywords_in_issues = []
+    issues_list = []
     unique_keywords_in_issues = []
     unique_labels_in_issues = []
     issues_obj = repo.get_issues(state='all')
@@ -23,22 +23,22 @@ def issues(repo, auth, keywords):
         counter += 1
         if auth.get_rate_limit().core.remaining <= 0:
             reset_sleep(auth)
-        issue_result = read_issue(keywords, issue, auth)
+        issue_result = read_issue(keywords, issue, auth, repo.id)
         if issue_result is not None:
-            found_keywords_in_issues.append(issue_result)
-            for keyword in issue_result[1]:
+            issues_list.append(issue_result)
+            for keyword in issue_result[2]:
                 if keyword not in unique_keywords_in_issues:
                     unique_keywords_in_issues.append(keyword)
-            for label in issue_result[2]:
+            for label in issue_result[3]:
                 if label not in unique_labels_in_issues:
                     unique_labels_in_issues.append(keyword)
-    if not found_keywords_in_issues:
+    if not issues_list:
         return issues_obj.totalCount
     else:
-        return found_keywords_in_issues, unique_keywords_in_issues, unique_labels_in_issues, issues_obj.totalCount
+        return [issues_list, unique_keywords_in_issues, unique_labels_in_issues, issues_obj.totalCount]
 
 
-def read_issue(keywords, issue, auth):
+def read_issue(keywords, issue, auth, repo_id):
     """
     checks for each comment in the given issue if the given keywords are found. Also inside the title
     if a keyword was found it is written inside a list
@@ -73,9 +73,9 @@ def read_issue(keywords, issue, auth):
         return None
     else:
         if issue.closed_at is None:
-            return issue.id, keywords_in_issue, label_list, issue.comments, issue.number, \
-                   issue.created_at.strftime(str(issue.created_at.date())), 'NA'
+            return [repo_id, issue.id, keywords_in_issue, label_list, issue.comments, issue.number,
+                    issue.created_at.strftime(str(issue.created_at.date())), 'NA']
         else:
-            return issue.id, keywords_in_issue, label_list, issue.comments, issue.number, \
-                   issue.created_at.strftime(str(issue.created_at.date())), \
-                   issue.closed_at.strftime(str(issue.closed_at.date()))
+            return [repo_id, issue.id, keywords_in_issue, label_list, issue.comments, issue.number,
+                    issue.created_at.strftime(str(issue.created_at.date())),
+                    issue.closed_at.strftime(str(issue.closed_at.date()))]
