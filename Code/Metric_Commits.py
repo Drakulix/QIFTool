@@ -29,9 +29,9 @@ def commits(repo, auth, keywords):
                 if keyword not in unique_keywords_in_commits:
                     unique_keywords_in_commits.append(keyword)
     if not found_keywords_in_commits:
-        return None
+        return commits_obj.totalCount
     else:
-        return found_keywords_in_commits, unique_keywords_in_commits
+        return found_keywords_in_commits, unique_keywords_in_commits, commits_obj.totalCount
 
 
 def read_commit(keywords, commit):

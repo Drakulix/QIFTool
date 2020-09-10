@@ -9,6 +9,7 @@ import sqlite3
 import os
 import configparser
 import datetime
+import sys
 
 from sqlite3 import Error
 from github import Github
@@ -64,12 +65,12 @@ def create_database(path):
     # the current directory of the main.py
     try:
         repositories_table_statement = """ CREATE TABLE IF NOT EXISTS repositories (
-                                            repo_id integer NOT NULL PRIMARY KEY,
-                                            repo_creator text NOT NULL,
-                                            repo_name text NOT NULL,
-                                            repo_size integer NOT NULL,
-                                            downloaded boolean NOT NULL,
-                                            last_access text NOT NULL,
+                                            repo_id integer PRIMARY KEY,
+                                            repo_creator text,
+                                            repo_name text,
+                                            repo_size integer,
+                                            downloaded boolean,
+                                            last_access text,
                                             
                                             code_frequency_additions integer,
                                             code_frequency_deletions integer,
@@ -77,27 +78,31 @@ def create_database(path):
                                             
                                             contributors integer,
                                             
+                                            commits_amount integer,
                                             commits_keywords text,
                                             
+                                            issues_amount integer,
                                             issues_keywords text,
                                             
+                                            pull_requests_amount integer,
                                             pull_requests_keywords text,
                                             
                                             UNIQUE(repo_id, repo_creator, repo_name, repo_size, downloaded, last_access,
                                                     code_frequency_additions, code_frequency_deletions,
                                                     code_frequency_difference,
-                                                    contributors, commits_keywords, issues_keywords,
-                                                    pull_requests_keywords) ON CONFLICT IGNORE
+                                                    contributors, commits_amount, commits_keywords, 
+                                                    issues_amount, issues_keywords,
+                                                    pull_requests_amount, pull_requests_keywords) ON CONFLICT IGNORE
                                             ); """
 
         commits_table_statement = """ CREATE TABLE IF NOT EXISTS commits (
-                                                                    repo_id integer NOT NULL,
-                                                                    commit_id integer NOT NULL PRIMARY KEY,
-                                                                    keywords text NOT NULL,
-                                                                    commit_author_id integer NOT NULL,
-                                                                    commit_author_name text NOT NULL,
-                                                                    commit_additions integer NOT NULL,
-                                                                    commit_deletions integer NOT NULL,
+                                                                    repo_id integer,
+                                                                    commit_id integer PRIMARY KEY,
+                                                                    keywords text,
+                                                                    commit_author_id integer,
+                                                                    commit_author_name text,
+                                                                    commit_additions integer,
+                                                                    commit_deletions integer,
 
                                                                     FOREIGN KEY (repo_id) REFERENCES 
                                                                     repositories (repo_id),
@@ -109,14 +114,14 @@ def create_database(path):
                                                                     ); """
 
         issues_table_statement = """ CREATE TABLE IF NOT EXISTS issues (
-                                                    repo_id integer NOT NULL,
-                                                    issue_id integer NOT NULL PRIMARY KEY,
-                                                    keywords text NOT NULL,
-                                                    issue_number integer NOT NULL,
-                                                    labels text NOT NULL,
-                                                    amount_of_comments integer NOT NULL,
-                                                    create_date text NOT NULL,
-                                                    closed_date text NOT NULL,
+                                                    repo_id integer,
+                                                    issue_id integer PRIMARY KEY,
+                                                    keywords text,
+                                                    issue_number integer,
+                                                    labels text,
+                                                    amount_of_comments integer,
+                                                    create_date text,
+                                                    closed_date text,
                                                     
                                                     FOREIGN KEY (repo_id) REFERENCES repositories (repo_id),
 
@@ -125,15 +130,15 @@ def create_database(path):
                                                     ); """
 
         pull_requests_table_statement = """ CREATE TABLE IF NOT EXISTS pull_requests (
-                                                            repo_id integer NOT NULL,
-                                                            pull_request_id integer NOT NULL PRIMARY KEY,
-                                                            keywords text NOT NULL,
-                                                            pull_request_number integer NOT NULL,
-                                                            labels text NOT NULL,
-                                                            amount_of_comments integer NOT NULL,
-                                                            amount_of_commits integer NOT NULL,
-                                                            create_date text NOT NULL,
-                                                            closed_date text NOT NULL,
+                                                            repo_id integer,
+                                                            pull_request_id integer PRIMARY KEY,
+                                                            keywords text,
+                                                            pull_request_number integer,
+                                                            labels text,
+                                                            amount_of_comments integer,
+                                                            amount_of_commits integer,
+                                                            create_date text,
+                                                            closed_date text,
 
                                                             FOREIGN KEY (repo_id) REFERENCES repositories (repo_id),
 
@@ -167,25 +172,26 @@ def insert(conn, table, values):
     if table == 'repositories':
         insert_statement = """INSERT INTO repositories (repo_id, repo_creator, repo_name, repo_size, downloaded, 
                                                         last_access, code_frequency_additions, code_frequency_deletions,
-                                                        code_frequency_difference, contributors) 
-                                                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?); """
-    elif table == 'repositories_commits':
+                                                        code_frequency_difference, contributors, commits_amount, 
+                                                        issues_amount, pull_requests_amount) 
+                                                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?); """
+    elif table == 'repositories_commits_keywords':
         insert_statement = """INSERT INTO repositories (commits_keywords) VALUES (?); """
-    elif table == 'repositories_issues':
+    elif table == 'repositories_issues_keywords':
         insert_statement = """INSERT INTO repositories (issues_keywords) VALUES (?); """
-    elif table == 'repositories_pull_requests':
+    elif table == 'repositories_pull_requests_keywords':
         insert_statement = """INSERT INTO repositories (pull_requests_keywords) VALUES (?); """
     # ---------------------------------------------------------------------------------------------------------------- #
     elif table == 'commits':
-        insert_statement = """INSERT INTO commits (repo_id, issue_id, amount_of_comments, 
-                                                    issue_number, create_date, closed_date) 
+        insert_statement = """INSERT INTO commits (repo_id, commit_id, commit_author_id, 
+                                                    commit_author_name, commit_additions, commit_deletions) 
                                                     VALUES (?, ?, ?, ?, ?, ?); """
     elif table == 'commits_keywords':
         insert_statement = """INSERT INTO commits (keywords) VALUES (?); """
     # ---------------------------------------------------------------------------------------------------------------- #
     elif table == 'issues':
-        insert_statement = """INSERT INTO issues (repo_id, issue_id, issue_number, amount_of_comments,
-                                                    create_date, closed_date) 
+        insert_statement = """INSERT INTO issues (repo_id, issue_id, issue_number, 
+                                                    amount_of_comments, create_date, closed_date) 
                                                     VALUES (?, ?, ?, ?, ?, ?); """
     elif table == 'issues_keywords':
         insert_statement = """INSERT INTO issues (keywords) VALUES (?); """
@@ -193,8 +199,9 @@ def insert(conn, table, values):
         insert_statement = """INSERT INTO issues (labels) VALUES (?); """
     # ---------------------------------------------------------------------------------------------------------------- #
     elif table == 'pull_requests':
-        insert_statement = """INSERT INTO pull_requests (repo_id, pull_request_id, pull_request_number, 
-                                                        amount_of_comments, amount_of_commits, create_date, closed_date) 
+        insert_statement = """INSERT INTO pull_requests (repo_id, pull_request_id, pull_request_number,
+                                                            amount_of_comments, amount_of_commits,
+                                                            create_date, closed_date) 
                                                         VALUES (?, ?, ?, ?, ?, ?, ?); """
     elif table == 'pull_requests_keywords':
         insert_statement = """INSERT INTO pull_requests (keywords) VALUES (?); """
@@ -204,8 +211,15 @@ def insert(conn, table, values):
     with conn:
         try:
             if insert_statement is not None:
-                for value in values:
-                    cursor.execute(insert_statement, value)
+                if 'keywords' in table or 'labels' in table:
+                    for value in values:
+                        print(value, values)
+                        print('KEYWORDS OR LABELS with', insert_statement)
+                        cursor.execute(insert_statement, [value])
+                else:
+                    print(values)
+                    print('TABLE INSERT with', insert_statement)
+                    cursor.execute(insert_statement, values)
             else:
                 print('table selection went wrong!')
         except Exception as e:
@@ -396,7 +410,7 @@ def repo_search(auth, database, loops_of_1000s, size):
     if ".." not in size:
         loops_of_1000s = 1
     for i in range(int(loops_of_1000s)):
-        repositories = auth.search_repositories(query=size)
+        repositories = auth.search_repositories(query=size)  # (query='size:'+size)
         for repo in repositories:
             # readout the metadata for the repository itself
             repo_id = repo.id
@@ -412,32 +426,40 @@ def repo_search(auth, database, loops_of_1000s, size):
                 # readout the metadata of the repo
                 metric_results = metric_search(auth, repo)
                 # insert the metadata of commits
-                commits_results = metric_results[0]
-                if commits_results is not None:
+                commits_results = list(metric_results[0])
+                if commits_results is int:
+                    commits_amount = commits_results
+                else:
+                    print('COMMITS')
                     commits_results_keywords = metric_results[0][1]
-                    insert(conn, 'repositories_commits', commits_results_keywords)
-                    insert(conn, 'commits', list(commits_results).remove(commits_results_keywords))
+                    insert(conn, 'repositories_commits_keywords', commits_results_keywords)
+                    insert(conn, 'commits', commits_results.remove(commits_results_keywords))
                     insert(conn, 'commits_keywords', commits_results_keywords)
 
                 # insert the metadata of issues
-                issues_results = metric_results[1]
-                if issues_results is not None:
+                issues_results = list(metric_results[1])
+                if issues_results is int:
+                    issues_amount = issues_results
+                else:
+                    print('ISSUES')
                     issues_results_keywords = metric_results[1][0]
                     issues_results_labels = metric_results[1][1]
-                    insert(conn, 'repositories_issues', issues_results_keywords)
-                    insert(conn, 'issues',
-                           list(issues_results).remove(issues_results_keywords).remove(issues_results_labels))
+                    insert(conn, 'repositories_issues_keywords', issues_results_keywords)
+                    insert(conn, 'issues', issues_results.remove(issues_results_keywords).remove(issues_results_labels))
                     insert(conn, 'issues_keywords', issues_results_keywords)
                     insert(conn, 'issues_labels', issues_results_labels)
 
                 # insert the metadata of pull requests
-                pull_request_results = metric_results[2]
-                if pull_request_results is not None:
+                pull_requests_results = list(metric_results[2])
+                if pull_requests_results is int:
+                    pull_requests_amount = pull_requests_results
+                else:
+                    print('PULL REQUEST')
                     pull_request_results_keywords = metric_results[2][0]
                     pull_request_results_labels = metric_results[2][1]
-                    insert(conn, 'repositories_pull_requests', pull_request_results_keywords)
+                    insert(conn, 'repositories_pull_requests_keywords', pull_request_results_keywords)
                     insert(conn, 'pull_requests',
-                           list(pull_request_results).remove(pull_request_results_keywords).
+                           pull_requests_results.remove(pull_request_results_keywords).
                            remove(pull_request_results_labels))
                     insert(conn, 'pull_requests_keywords', pull_request_results_keywords)
                     insert(conn, 'pull_requests_labels', pull_request_results_labels)
@@ -445,10 +467,22 @@ def repo_search(auth, database, loops_of_1000s, size):
                 contributors_results = metric_results[3]
                 statscodefrequency_results_adds = metric_results[4][0]
                 statscodefrequency_results_dels = metric_results[4][1]
+                # print(type(repo_id), repo_id)
+                # print(type(repo_creator), repo_creator)
+                # print(type(repo_name), repo_name)
+                # print(type(repo_size), repo_size)
+                # print(type(downloaded), downloaded)
+                # print(type(last_access), last_access)
+                # print(type(statscodefrequency_results_adds), statscodefrequency_results_adds)
+                # print(type(statscodefrequency_results_dels), statscodefrequency_results_dels)
+                # print(type(statscodefrequency_results_dels/statscodefrequency_results_adds),
+                #            statscodefrequency_results_dels/statscodefrequency_results_adds)
+                # print(type(contributors_results), contributors_results)
                 insert(conn, 'repositories', (repo_id, repo_creator, repo_name, repo_size, downloaded, last_access,
                                               statscodefrequency_results_adds, statscodefrequency_results_dels,
                                               statscodefrequency_results_dels/statscodefrequency_results_adds,
-                                              contributors_results))
+                                              contributors_results,
+                                              commits_amount, issues_amount, pull_requests_amount))
                 conn.close()
                 print('insert for', repo.full_name, ' complete\n')
             except Exception as e:
@@ -500,7 +534,7 @@ def query(auth):
     """
     repo_count = 0
     values = []
-    repos = auth.search_repositories(query='size:>500')
+    repos = auth.search_repositories(size='size:>500')
     for repo in repos:
         repo_count += 1
         print(repo_count, repo.size, repo.name, repo.downloads_url)
@@ -598,6 +632,7 @@ if __name__ == '__main__':
     loops_of_1000s = init[3]
     size = init[4]
     print(database_path)
+    print(size)
     # repo = auth.get_repo('ytmdesktop/ytmdesktop')
     # repo.get_issue(234234).created_at.strftime(str)
     # repo = auth.get_repo('PyGithub/PyGithub')

@@ -33,9 +33,9 @@ def issues(repo, auth, keywords):
                 if label not in unique_labels_in_issues:
                     unique_labels_in_issues.append(keyword)
     if not found_keywords_in_issues:
-        return None
+        return issues_obj.totalCount
     else:
-        return found_keywords_in_issues, unique_keywords_in_issues, unique_labels_in_issues
+        return found_keywords_in_issues, unique_keywords_in_issues, unique_labels_in_issues, issues_obj.totalCount
 
 
 def read_issue(keywords, issue, auth):

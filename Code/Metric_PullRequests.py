@@ -33,9 +33,10 @@ def pull_requests(repo, auth, keywords):
                 if label not in unique_labels_in_pull_request:
                     unique_labels_in_pull_request.append(keyword)
     if not found_keywords_in_pull_request:
-        return None
+        return pull_request_obj.totalCount
     else:
-        return found_keywords_in_pull_request, unique_keywords_in_pull_request, unique_labels_in_pull_request
+        return found_keywords_in_pull_request, unique_keywords_in_pull_request, unique_labels_in_pull_request, \
+               pull_request_obj.totalCount
 
 
 def read_pull(keywords, pull, auth):
