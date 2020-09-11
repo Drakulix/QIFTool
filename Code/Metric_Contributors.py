@@ -2,6 +2,8 @@
 main.py passes over an object as argument of class Repository
 """
 
+import sys
+
 
 def contributors(repo, auth):
     """
@@ -10,8 +12,12 @@ def contributors(repo, auth):
     :param auth: the authentication object that is used to access the current rate-limit
     :return: returns the amount of contributors as an int
     """
-    from main import reset_sleep
-    if auth.get_rate_limit().core.remaining <= 0:
-        reset_sleep(auth)
-    cons = repo.get_contributors().totalCount
-    return cons
+    try:
+        from main import reset_sleep
+        if auth.get_rate_limit().core.remaining <= 0:
+            reset_sleep(auth)
+        cons = repo.get_contributors().totalCount
+        return cons
+    except Exception as e:
+        print('Exception inside Metrics_Contributors.contributors() on line {}:'.format(sys.exc_info()[-1].tb_lineno),
+              e.with_traceback(e.__traceback__))

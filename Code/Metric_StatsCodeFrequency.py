@@ -2,6 +2,8 @@
 main.py passes over an object as argument of class Repository
 """
 
+import sys
+
 
 def stats_code_frequency(repo, auth):
     """
@@ -11,13 +13,17 @@ def stats_code_frequency(repo, auth):
     :return: returns a tuple with the first item being the accumulated additions
             and the second the accumulated deletions
     """
-    from main import reset_sleep
-    if auth.get_rate_limit().core.remaining <= 0:
-        reset_sleep(auth)
-    scf_obj = repo.get_stats_code_frequency()
-    additions = 0
-    deletions = 0
-    for add_del in scf_obj:
-        additions += add_del.additions
-        deletions += add_del.deletions
-    return additions, deletions.__abs__()
+    try:
+        from main import reset_sleep
+        if auth.get_rate_limit().core.remaining <= 0:
+            reset_sleep(auth)
+        scf_obj = repo.get_stats_code_frequency()
+        additions = 0
+        deletions = 0
+        for add_del in scf_obj:
+            additions += add_del.additions
+            deletions += add_del.deletions
+        return additions, deletions.__abs__()
+    except Exception as e:
+        print('Exception inside Metrics_StatsCodeFrequency.stats_code_frequency() on line {}:'
+              .format(sys.exc_info()[-1].tb_lineno), e.with_traceback(e.__traceback__))
