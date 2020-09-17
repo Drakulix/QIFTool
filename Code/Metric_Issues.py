@@ -5,6 +5,28 @@ main.py passes over an object as argument of class Repository
 import sys
 
 
+class Issues:
+    def __init__(self, issues_list, keywords, labels, total_count):
+        self.issues_list = issues_list
+        self.keywords = keywords
+        self.labels = labels
+        self.total_count = total_count
+
+
+class Issue:
+    def __init__(self, repo_id, id, url, title, number, keywords, labels, comments_total_count, created_at, closed_at):
+        self.repo_id = repo_id
+        self.id = id
+        self.url = url
+        self.title = title
+        self.number = number
+        self.keywords = keywords
+        self.labels = labels
+        self.comments_totalCount = comments_total_count
+        self.created_at = created_at
+        self.closed_at = closed_at
+
+
 def issues(repo, auth, keywords):
     """
     uses a list of keywords to look for in each issue title and its comments
@@ -29,16 +51,17 @@ def issues(repo, auth, keywords):
             issue_result = read_issue(keywords, issue, auth, repo.id)
             if issue_result is not None:
                 issues_list.append(issue_result)
-                for keyword in issue_result[3]:
+                for keyword in issue_result.keywords:
                     if keyword not in unique_keywords_in_issues:
                         unique_keywords_in_issues.append(keyword)
-                for label in issue_result[4]:
+                for label in issue_result.labels:
                     if label not in unique_labels_in_issues:
                         unique_labels_in_issues.append(label)
         if not issues_list:
-            return issues_obj.totalCount
+            return Issues(issues_list=None, keywords=None, labels=None, total_count=issues_obj.totalCount)
         else:
-            return [issues_list, unique_keywords_in_issues, unique_labels_in_issues, issues_obj.totalCount]
+            return Issues(issues_list=Issues, keywords=unique_keywords_in_issues, labels=unique_labels_in_issues,
+                          total_count=issues_obj.totalCount)
     except Exception as e:
         print('Exception inside Metrics_Issues.issues() on line {}:'.format(sys.exc_info()[-1].tb_lineno),
               e.with_traceback(e.__traceback__))
@@ -81,12 +104,14 @@ def read_issue(keywords, issue, auth, repo_id):
             return None
         else:
             if issue.closed_at is None:
-                return [repo_id, issue.id, issue.number, keywords_in_issue, label_list, issue.comments,
-                        issue.created_at.strftime(str(issue.created_at.date())), 'NA']
+                return Issue(repo_id=repo_id, id=issue.id, url=issue.url, title=issue.title, number=issue.number,
+                             keywords=keywords_in_issue, labels=label_list, comments_total_count=issue.comments,
+                             created_at=issue.created_at.strftime(str(issue.created_at.date())), closed_at='NA')
             else:
-                return [repo_id, issue.id, issue.number, keywords_in_issue, label_list, issue.comments,
-                        issue.created_at.strftime(str(issue.created_at.date())),
-                        issue.closed_at.strftime(str(issue.closed_at.date()))]
+                return Issue(repo_id=repo_id, id=issue.id, url=issue.url, title=issue.title, number=issue.number,
+                             keywords=keywords_in_issue, labels=label_list, comments_total_count=issue.comments,
+                             created_at=issue.created_at.strftime(str(issue.created_at.date())),
+                             closed_at=issue.closed_at.strftime(str(issue.closed_at.date())))
     except Exception as e:
         print('Exception inside Metrics_Issues.read_issue() on line {}:'.format(sys.exc_info()[-1].tb_lineno),
               e.with_traceback(e.__traceback__))

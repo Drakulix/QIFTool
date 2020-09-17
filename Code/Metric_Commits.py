@@ -5,6 +5,25 @@ main.py passes over an object as argument of class Repository
 import sys
 
 
+class Commits:
+    def __init__(self, commits_list, keywords, total_count):
+        self.commits_list = commits_list
+        self.keywords = keywords
+        self.total_count = total_count
+
+
+class Commit:
+    def __init__(self, repo_id, sha, url, keywords, author_id, author_login, additions, deletions):
+        self.repo_id = repo_id
+        self.sha = sha
+        self.url = url
+        self.keywords = keywords
+        self.author_id = author_id
+        self.author_login = author_login
+        self.additions = additions
+        self.deletions = deletions
+
+
 def commits(repo, auth, keywords):
     """
     uses a list of keywords to look for in each commit message
@@ -28,13 +47,14 @@ def commits(repo, auth, keywords):
             commit_result = read_commit(keywords, commit, repo.id)
             if commit_result is not None:
                 commits_list.append(commit_result)
-                for keyword in commit_result[2]:
+                for keyword in commit_result.keywords:
                     if keyword not in unique_keywords_in_commits:
                         unique_keywords_in_commits.append(keyword)
         if not commits_list:
-            return commits_obj.totalCount
+            return Commits(commits_list=None, keywords=None, total_count=commits_obj.totalCount)
         else:
-            return [commits_list, unique_keywords_in_commits, commits_obj.totalCount]
+            return Commits(commits_list=commits_list, keywords=unique_keywords_in_commits,
+                           total_count=commits_obj.totalCount)
     except Exception as e:
         print('Exception inside Metrics_Commits.commits() on line {}:'.format(sys.exc_info()[-1].tb_lineno),
               e.with_traceback(e.__traceback__))
@@ -57,12 +77,13 @@ def read_commit(keywords, commit, repo_id):
             return None
         else:
             if commit.author is None:
-                return [repo_id, commit.sha, keywords_in_commit, 0, 'NA',
-                        commit.stats.additions, commit.stats.deletions]
-
+                return Commit(repo_id=repo_id, sha=commit.sha, url=commit.url,
+                              keywords=keywords_in_commit, author_id=0, author_login="NA",
+                              additions=commit.stats.additions, deletions=commit.stats.deletions)
             else:
-                return [repo_id, commit.sha, keywords_in_commit, commit.author.id, commit.author.login,
-                        commit.stats.additions, commit.stats.deletions]
+                return Commit(repo_id=repo_id, sha=commit.sha, url=commit.url,
+                              keywords=keywords_in_commit, author_id=commit.author.id, author_login=commit.author.login,
+                              additions=commit.stats.additions, deletions=commit.stats.deletions)
     except Exception as e:
         print('Exception inside Metrics_Commits.read_commit() on line {}:'.format(sys.exc_info()[-1].tb_lineno),
               e.with_traceback(e.__traceback__))

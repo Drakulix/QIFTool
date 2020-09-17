@@ -5,6 +5,32 @@ main.py passes over an object as argument of class Repository
 import sys
 
 
+class PullRequests:
+    def __init__(self, pulls_list, keywords, labels, total_count):
+        self.pulls_list = pulls_list
+        self.keywords = keywords
+        self.labels = labels
+        self.total_count = total_count
+
+
+class Pull:
+    def __init__(self, repo_id, id, url, title, number, keywords, labels, comments_total_count, commits_total_count, additions,
+                 deletions, created_at, closed_at):
+        self.repo_id = repo_id
+        self.id = id
+        self.url = url
+        self.title = title
+        self.number = number
+        self.keywords = keywords
+        self.labels = labels
+        self.comments_totalCount = comments_total_count
+        self.commits_totalCount = commits_total_count
+        self.additions = additions
+        self.deletions = deletions
+        self.created_at = created_at
+        self.closed_at = closed_at
+
+
 def pull_requests(repo, auth, keywords):
     """
     uses a list of keywords to look for in each pull request title, its content and comments
@@ -29,17 +55,17 @@ def pull_requests(repo, auth, keywords):
             pull_result = read_pull(keywords, pull, auth, repo.id)
             if pull_result is not None:
                 pull_request_list.append(pull_result)
-                for keyword in pull_result[3]:
+                for keyword in pull_result.keywords:
                     if keyword not in unique_keywords_in_pull_request:
                         unique_keywords_in_pull_request.append(keyword)
-                for label in pull_result[4]:
+                for label in pull_result.labels:
                     if label not in unique_labels_in_pull_request:
                         unique_labels_in_pull_request.append(label)
         if not pull_request_list:
-            return pull_request_obj.totalCount
+            return PullRequests(total_count=pull_request_obj.totalCount)
         else:
-            return [pull_request_list, unique_keywords_in_pull_request, unique_labels_in_pull_request,
-                    pull_request_obj.totalCount]
+            return PullRequests(pulls_list=Pull, keywords=unique_keywords_in_pull_request,
+                                labels=unique_labels_in_pull_request, total_count=pull_request_obj.totalCount)
     except Exception as e:
         print('Exception inside Metrics_PullRequests.pull_requests() on line {}:'.format(sys.exc_info()[-1].tb_lineno),
               e.with_traceback(e.__traceback__))
@@ -84,15 +110,16 @@ def read_pull(keywords, pull, auth, repo_id):
             return None
         else:
             if pull.closed_at is None:
-                return [repo_id, pull.id, pull.number, keywords_in_pull_request, label_list, pull.comments,
-                        pull.commits, pull.additions, pull.deletions,
-                        pull.created_at.strftime(str(pull.created_at.date())), 'NA']
-
+                return Pull(repo_id=repo_id, id=pull.id, url=pull.url, title=pull.title, number=pull.number,
+                            keywords=keywords_in_pull_request, labels=label_list, comments_total_count=pull.comments,
+                            commits_total_count=pull.commits, additions=pull.additions, deletions=pull.deletions,
+                            created_at=pull.created_at.strftime(str(pull.created_at.date())), closed_at='NA')
             else:
-                return [repo_id, pull.id, pull.number, keywords_in_pull_request, label_list, pull.comments,
-                        pull.commits, pull.additions, pull.deletions,
-                        pull.created_at.strftime(str(pull.created_at.date())),
-                        pull.closed_at.strftime(str(pull.closed_at.date()))]
+                return Pull(repo_id=repo_id, id=pull.id, url=pull.url, title=pull.title, number=pull.number,
+                            keywords=keywords_in_pull_request, labels=label_list, comments_total_count=pull.comments,
+                            commits_total_count= pull.commits, additions=pull.additions, deletions=pull.deletions,
+                            created_at=pull.created_at.strftime(str(pull.created_at.date())),
+                            closed_at=pull.closed_at.strftime(str(pull.closed_at.date())))
     except Exception as e:
         print('Exception inside Metrics_PullRequests.read_pull() on line {}:'.format(sys.exc_info()[-1].tb_lineno),
               e.with_traceback(e.__traceback__))
