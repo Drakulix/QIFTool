@@ -29,12 +29,12 @@ def create_config():
     config['DEFAULT'] = {'path_of_database': 'current',
                          'path_of_download': 'current',
                          'loops_of_1000s': '1',
-                         'size': "0..10000"
+                         'size': ">0"
                          }
     config['manual'] = {'path_of_database': r"/home/robert/OSCTool/Code",
                         'path_of_download': r"/home/robert/OSCTool/Code",
                         'loops_of_1000s': '1',
-                        'size': '500'
+                        'size': '>0'
                         }
     config['mode'] = {'use_default_values': 'yes'
                       }
@@ -142,7 +142,7 @@ def create_database(path):
                                             
                                             code_frequency_additions integer,
                                             code_frequency_deletions integer,
-                                            code_frequency_difference real,
+                                            code_frequency_ratio real,
                                             
                                             contributors integer,
                                             
@@ -188,6 +188,7 @@ def create_database(path):
                                                     repo_id integer,
                                                     issue_id integer PRIMARY KEY,
                                                     issue_url text,
+                                                    issue_title text,
                                                     issue_number integer,
                                                     keywords text,
                                                     labels text,
@@ -197,8 +198,9 @@ def create_database(path):
                                                     
                                                     FOREIGN KEY (repo_id) REFERENCES repositories (repo_id),
 
-                                                    UNIQUE(repo_id, issue_id, issue_url, keywords, issue_number, labels, 
-                                                    amount_of_comments, create_date, closed_date) ON CONFLICT IGNORE
+                                                    UNIQUE(repo_id, issue_id, issue_url, issue_title, keywords, 
+                                                    issue_number, labels, amount_of_comments, create_date, closed_date) 
+                                                    ON CONFLICT IGNORE
                                                     ); """
 
         pull_requests_table_statement = """ CREATE TABLE IF NOT EXISTS pull_requests (
@@ -249,7 +251,7 @@ def insert(conn, table, values):
         insert_statement = """INSERT INTO repositories (repo_id, repo_url, repo_creator, repo_name, repo_size, 
                                                         downloaded, last_access, keywords, keywords_hit, 
                                                         code_frequency_additions, code_frequency_deletions, 
-                                                        code_frequency_difference, 
+                                                        code_frequency_ratio, 
                                                         contributors, commits_amount, commits_keywords, 
                                                         issues_amount, issues_keywords, issues_labels, 
                                                         pull_requests_amount, pull_requests_keywords, 
@@ -263,9 +265,9 @@ def insert(conn, table, values):
                                                     VALUES (?, ?, ?, ?, ?, ?, ?, ?); """
     # ---------------------------------------------------------------------------------------------------------------- #
     elif table == 'issues':
-        insert_statement = """INSERT INTO issues (repo_id, issue_id, issue_url, issue_number, keywords, labels,
-                                                    amount_of_comments, create_date, closed_date) 
-                                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?); """
+        insert_statement = """INSERT INTO issues (repo_id, issue_id, issue_url, issue_title, issue_number, keywords, 
+                                                    labels, amount_of_comments, create_date, closed_date) 
+                                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?); """
     # ---------------------------------------------------------------------------------------------------------------- #
     elif table == 'pull_requests':
         insert_statement = """INSERT INTO pull_requests (repo_id, pull_request_id, pull_url, pull_request_number, 
@@ -277,7 +279,9 @@ def insert(conn, table, values):
     with conn:
         try:
             if insert_statement is not None:
-                cursor.execute(insert_statement, values)
+                print(insert_statement)
+                print(list(vars(values).values()))
+                cursor.execute(insert_statement, list(vars(values).values()))
             else:
                 print('table selection went wrong!')
         except Exception as e:
@@ -351,6 +355,36 @@ class MetricMetaData:
         self.scf = scf
 
 
+class RepoValues:
+    def __init__(self, id=None, url=None, creator=None, name=None, size=None, downloaded=None, last_access='',
+                 keywords='', keywords_hit=None, statscodefrequency_results_adds=None,
+                 statscodefrequency_results_dels=None, statscodefrequency_results_ratio=None, contributors_results=None,
+                 commits_repo_amount=None, commits_repo_keywords='', issues_repo_amount=None,
+                 issues_repo_keywords='', issues_repo_labels='', pull_requests_repo_amount=None,
+                 pull_requests_repo_keywords='', pull_requests_repo_labels=''):
+        self.id = id
+        self.url = url
+        self.creator = creator
+        self.name = name
+        self.size = size
+        self.downloaded = downloaded
+        self.last_access = last_access
+        self.keywords = keywords
+        self.keywords_hit = keywords_hit
+        self.statscodefrequency_results_adds = statscodefrequency_results_adds
+        self.statscodefrequency_results_dels = statscodefrequency_results_dels
+        self.statscodefrequency_results_ratio = statscodefrequency_results_ratio
+        self.contributors_results = contributors_results
+        self.commits_repo_amount = commits_repo_amount
+        self.commits_repo_keywords = commits_repo_keywords
+        self.issues_repo_amount = issues_repo_amount
+        self.issues_repo_keywords = issues_repo_keywords
+        self.issues_repo_labels = issues_repo_labels
+        self.pull_requests_repo_amount = pull_requests_repo_amount
+        self.pull_requests_repo_keywords = pull_requests_repo_keywords
+        self.pull_requests_repo_labels = pull_requests_repo_labels
+
+
 def metric_search(auth, repo):
     """
     gets a repository and searches all the metadata of the given metrics
@@ -364,20 +398,20 @@ def metric_search(auth, repo):
         issues_keywords = config_values['issues']
         pull_requests_keywords = config_values['pull_requests']
         metric_meta_data = MetricMetaData(None, None, None, None, None)
-        print(datetime.datetime.now(), '- working on ', repo.full_name, 'with',
+        print(datetime.datetime.now(), '- working on ', repo.full_name, repo.id, 'with',
               auth.get_rate_limit().core.remaining, 'requests remaining')
-        print('\tworking on commits for', repo.full_name)
+        print('\tworking on commits for', repo.full_name, repo.id)
         if not commits_keywords == '':
             metric_meta_data.commits = Metric_Commits.commits(repo, auth, commits_keywords)
-        print('\tworking on issues for', repo.full_name)
+        print('\tworking on issues for', repo.full_name, repo.id)
         if not issues_keywords == '':
             metric_meta_data.issues = Metric_Issues.issues(repo, auth, issues_keywords)
-        print('\tworking on pull requests for', repo.full_name)
+        print('\tworking on pull requests for', repo.full_name, repo.id)
         if not pull_requests_keywords == '':
             metric_meta_data.pulls = Metric_PullRequests.pull_requests(repo, auth, pull_requests_keywords)
-        print('\tworking on contributors for', repo.full_name)
+        print('\tworking on contributors for', repo.full_name, repo.id)
         metric_meta_data.contributors = Metric_Contributors.contributors(repo, auth)
-        print('\tworking on statscodefrequency for', repo.full_name)
+        print('\tworking on statscodefrequency for', repo.full_name, repo.id)
         metric_meta_data.scf = Metric_StatsCodeFrequency.stats_code_frequency(repo, auth)
 
         return metric_meta_data
@@ -403,15 +437,16 @@ def repo_search(auth, database, loops_of_1000s, size):
     for i in range(int(loops_of_1000s)):
         repositories = auth.search_repositories(query='size:' + size)  # (query='pelle/oauth')
         for repo in repositories:
+            repo_values = RepoValues()
             repo_counter += 1
             # readout the metadata for the repository itself
-            repo_id = repo.id
-            repo_url = repo.url
-            repo_creator = repo.full_name.split('/')[0]
-            repo_name = repo.full_name.split('/')[1]
-            repo_size = repo.size
-            downloaded = False
-            last_access = str(datetime.datetime.now().date())
+            repo_values.id = repo.id
+            repo_values.url = repo.url
+            repo_values.creator = repo.full_name.split('/')[0]
+            repo_values.name = repo.full_name.split('/')[1]
+            repo_values.size = repo.size
+            repo_values.downloaded = False
+            repo_values.last_access = str(datetime.datetime.now().date())
             keywords = []
             keywords_hit = 0
 
@@ -426,54 +461,49 @@ def repo_search(auth, database, loops_of_1000s, size):
                 print('repository:', repo_counter)
                 metric_results = metric_search(auth, repo)
 
-                contributors_results = metric_results.contributors
-                statscodefrequency_results_adds = metric_results.scf.additions
-                statscodefrequency_results_dels = metric_results.scf.deletions
-                statscodefrequency_results_ratio = metric_results.scf.ratio
+                repo_values.contributors_results = metric_results.contributors.size
+                repo_values.statscodefrequency_results_adds = metric_results.scf.additions
+                repo_values.statscodefrequency_results_dels = metric_results.scf.deletions
+                repo_values.statscodefrequency_results_ratio = metric_results.scf.ratio
 
                 # insert the metadata of commits  -------------------------------------------------------------------- #
-                commits_repo_keywords = ''
-                commits_repo_amount = metric_results.commits.total_count
+                repo_values.commits_repo_amount = metric_results.commits.total_count
                 if metric_results.commits.commits_list is not None:
                     # keywords and labels inside table repositories
                     for keyword in metric_results.commits.keywords[:-1]:
-                        commits_repo_keywords += keyword + ', '
+                        repo_values.commits_repo_keywords += keyword + ', '
                         if keyword not in keywords:
                             keywords.append(keyword)
-                    commits_repo_keywords += metric_results.commits.keywords[-1]
-                    if metric_results.issues.keywords[-1] not in keywords:
-                        keywords.append(keyword)
+                    repo_values.commits_repo_keywords += metric_results.commits.keywords[-1]
+                    if metric_results.commits.keywords[-1] not in keywords:
+                        keywords.append(metric_results.commits.keywords[-1])
 
                     # insert into the table commits
                     for commit in metric_results.commits.commits_list:
                         # keywords and labels inside table commits
                         commit_repo_key_str = ''
-                        for keyword in commit[2][:-1]:
+                        for keyword in metric_results.commits.keywords[:-1]:
                             commit_repo_key_str += keyword + ', '
-                        commit_repo_key_str += commit[2][-1]
-                        commit[2] = commit_repo_key_str
-
+                        commit_repo_key_str += metric_results.commits.keywords[-1]
+                        commit.keywords = commit_repo_key_str
                         insert(conn, 'commits', commit)
 
                 # insert the metadata of issues ---------------------------------------------------------------------- #
-                issues_repo_keywords = ''
-                issues_repo_labels = ''
-                issues_repo_amount = metric_results.issues.total_count
+                repo_values.issues_repo_amount = metric_results.issues.total_count
                 if metric_results.issues.issues_list is not None:
                     # keywords and labels inside table repositories
                     for keyword in metric_results.issues.keywords[:-1]:
-                        issues_repo_keywords += keyword + ', '
+                        repo_values.issues_repo_keywords += keyword + ', '
                         if keyword not in keywords:
                             keywords.append(keyword)
-                    issues_repo_keywords += metric_results.issues.keywords[-1]
+                    repo_values.issues_repo_keywords += metric_results.issues.keywords[-1]
                     if metric_results.issues.keywords[-1] not in keywords:
-                        keywords.append(keyword)
+                        keywords.append(metric_results.issues.keywords[-1])
 
-                    issues_repo_labels = ''
                     if metric_results.issues.labels:
                         for label in metric_results.issues.labels[:-1]:
-                            issues_repo_labels += label + ', '
-                        issues_repo_labels += metric_results.issues.labels[-1]
+                            repo_values.issues_repo_labels += label + ', '
+                        repo_values.issues_repo_labels += metric_results.issues.labels[-1]
 
                     # insert into the table issues
                     for issue in metric_results.issues.issues_list:
@@ -494,24 +524,22 @@ def repo_search(auth, database, loops_of_1000s, size):
                         insert(conn, 'issues', issue)
 
                 # insert the metadata of pull requests --------------------------------------------------------------- #
-                pull_requests_repo_keywords = ''
-                pull_requests_repo_labels = ''
-                pull_requests_repo_amount = metric_results.pulls.total_count
+                repo_values.pull_requests_repo_amount = metric_results.pulls.total_count
                 if metric_results.pulls.pulls_list is not None:
                     # keywords and labels inside table repositories
                     for keyword in metric_results.pulls.keywords[:-1]:
-                        pull_requests_repo_keywords += keyword + ', '
+                        repo_values.pull_requests_repo_keywords += keyword + ', '
                         if keyword not in keywords:
                             keywords.append(keyword)
-                    pull_requests_repo_keywords += metric_results.pulls.keywords[-1]
+                    repo_values.pull_requests_repo_keywords += metric_results.pulls.keywords[-1]
                     if metric_results.pulls.keywords[-1] not in keywords:
-                        keywords.append(keyword)
+                        keywords.append(metric_results.pulls.keywords[-1])
 
                     pull_requests_repo_labels = ''
                     if metric_results.pulls.labels:
                         for label in metric_results.pulls.labels[:-1]:
-                            pull_requests_repo_labels += label + ', '  
-                        pull_requests_repo_labels += metric_results.pulls.labels[-1]
+                            repo_values.pull_requests_repo_labels += label + ', '
+                        repo_values.pull_requests_repo_labels += metric_results.pulls.labels[-1]
                     # insert into the table pull_requests
                     for pull in metric_results.pulls.pulls_list:
                         # keywords and labels inside table pull_requests
@@ -530,18 +558,16 @@ def repo_search(auth, database, loops_of_1000s, size):
 
                         insert(conn, 'pull_requests', pull)
 
-                keywords_hit = len(keywords)
+                if keywords:
+                    for keyword in keywords[:-1]:
+                        repo_values.keywords += keyword + ', '
+                    repo_values.keywords += keywords[-1]
+                repo_values.keywords_hit = len(keywords)
 
                 # ---------------------------------------------------------------------------------------------------  #
 
-                insert(conn, 'repositories', (repo_id, repo_url, repo_creator, repo_name, repo_size, downloaded,
-                                              last_access, keywords, keywords_hit,
-                                              statscodefrequency_results_adds, statscodefrequency_results_dels,
-                                              statscodefrequency_results_ratio,
-                                              contributors_results, commits_repo_amount, commits_repo_keywords,
-                                              issues_repo_amount, issues_repo_keywords, issues_repo_labels,
-                                              pull_requests_repo_amount, pull_requests_repo_keywords,
-                                              pull_requests_repo_labels))
+                print(repo_values)
+                insert(conn, 'repositories', repo_values)
                 conn.close()
                 print('insert for', repo.full_name, 'complete')
                 print('# -------------------------------------------------'

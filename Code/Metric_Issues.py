@@ -60,7 +60,7 @@ def issues(repo, auth, keywords):
         if not issues_list:
             return Issues(issues_list=None, keywords=None, labels=None, total_count=issues_obj.totalCount)
         else:
-            return Issues(issues_list=Issues, keywords=unique_keywords_in_issues, labels=unique_labels_in_issues,
+            return Issues(issues_list=issues_list, keywords=unique_keywords_in_issues, labels=unique_labels_in_issues,
                           total_count=issues_obj.totalCount)
     except Exception as e:
         print('Exception inside Metrics_Issues.issues() on line {}:'.format(sys.exc_info()[-1].tb_lineno),

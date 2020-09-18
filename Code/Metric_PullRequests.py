@@ -64,7 +64,7 @@ def pull_requests(repo, auth, keywords):
         if not pull_request_list:
             return PullRequests(pulls_list=None, keywords=None, labels=None, total_count=pull_request_obj.totalCount)
         else:
-            return PullRequests(pulls_list=Pull, keywords=unique_keywords_in_pull_request,
+            return PullRequests(pulls_list=pull_request_list, keywords=unique_keywords_in_pull_request,
                                 labels=unique_labels_in_pull_request, total_count=pull_request_obj.totalCount)
     except Exception as e:
         print('Exception inside Metrics_PullRequests.pull_requests() on line {}:'.format(sys.exc_info()[-1].tb_lineno),

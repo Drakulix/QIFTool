@@ -21,8 +21,7 @@ def contributors(repo, auth):
         from main import reset_sleep
         if auth.get_rate_limit().core.remaining <= 0:
             reset_sleep(auth)
-        contributor = Contributors()
-        contributor.size = repo.get_contributors().totalCount
+        contributor = Contributors(size=repo.get_contributors().totalCount)
         return contributor
     except Exception as e:
         print('Exception inside Metrics_Contributors.contributors() on line {}:'.format(sys.exc_info()[-1].tb_lineno),

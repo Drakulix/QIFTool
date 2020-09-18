@@ -25,14 +25,10 @@ def stats_code_frequency(repo, auth):
         if auth.get_rate_limit().core.remaining <= 0:
             reset_sleep(auth)
         scf_obj = repo.get_stats_code_frequency()
-        scf = SCF()
-        additions = 0
-        deletions = 0
+        scf = SCF(additions=0, deletions=0, ratio=0.0)
         for add_del in scf_obj:
-            additions += add_del.additions
-            deletions += add_del.deletions
-        scf.additions = additions
-        scf.deletions = deletions.__abs__()
+            scf.additions += add_del.additions
+            scf.deletions += add_del.deletions.__abs__()
         scf.ratio = scf.deletions/scf.additions
         return scf
     except Exception as e:
