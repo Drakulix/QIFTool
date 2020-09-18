@@ -62,7 +62,7 @@ def pull_requests(repo, auth, keywords):
                     if label not in unique_labels_in_pull_request:
                         unique_labels_in_pull_request.append(label)
         if not pull_request_list:
-            return PullRequests(total_count=pull_request_obj.totalCount)
+            return PullRequests(pulls_list=None, keywords=None, labels=None, total_count=pull_request_obj.totalCount)
         else:
             return PullRequests(pulls_list=Pull, keywords=unique_keywords_in_pull_request,
                                 labels=unique_labels_in_pull_request, total_count=pull_request_obj.totalCount)
