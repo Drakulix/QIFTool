@@ -279,8 +279,6 @@ def insert(conn, table, values):
     with conn:
         try:
             if insert_statement is not None:
-                print(insert_statement)
-                print(list(vars(values).values()))
                 cursor.execute(insert_statement, list(vars(values).values()))
             else:
                 print('table selection went wrong!')
@@ -289,6 +287,23 @@ def insert(conn, table, values):
                   e.with_traceback(e.__traceback__))
     # TODO write when to close and commit changes into the database
 
+
+def redundancy_check(conn, repo_id, repo_fullname):
+    try:
+        with conn:
+            cursor = conn.cursor()
+            check_statement = """SELECT repo_id FROM repositories WHERE repo_id = ?;"""
+            cursor.execute(check_statement, [repo_id])
+            db_repo = cursor.fetchall()
+            cursor.close()
+            if not db_repo:
+                return False
+            else:
+                print('\t\t', repo_fullname, repo_id, 'already in database. Skipped.')
+                return True
+    except Exception as e:
+        print('Exception inside insert on line {}:'.format(sys.exc_info()[-1].tb_lineno),
+              e.with_traceback(e.__traceback__))
 
 # -------------------------------------------------------------------------------------------------------------------- #
 # the following block of code deals with the folder structure and the downloading of the repositories
@@ -437,9 +452,14 @@ def repo_search(auth, database, loops_of_1000s, size):
     for i in range(int(loops_of_1000s)):
         repositories = auth.search_repositories(query='size:' + size)  # (query='pelle/oauth')
         for repo in repositories:
+            # insert found metadata into the tables of the database
+            # create the connection to the database
+            conn = create_connection(database)
+            if redundancy_check(conn, repo.id, repo.full_name):
+                continue
+            # readout the metadata for the repository itself
             repo_values = RepoValues()
             repo_counter += 1
-            # readout the metadata for the repository itself
             repo_values.id = repo.id
             repo_values.url = repo.url
             repo_values.creator = repo.full_name.split('/')[0]
@@ -448,12 +468,8 @@ def repo_search(auth, database, loops_of_1000s, size):
             repo_values.downloaded = False
             repo_values.last_access = str(datetime.datetime.now().date())
             keywords = []
-            keywords_hit = 0
 
             try:
-                # insert found metadata into the tables of the database
-                # create the connection to the database
-                conn = create_connection(database)
                 # readout the metadata of the repo
                 print('\n')
                 print('# -------------------------------------------------'
@@ -566,7 +582,6 @@ def repo_search(auth, database, loops_of_1000s, size):
 
                 # ---------------------------------------------------------------------------------------------------  #
 
-                print(repo_values)
                 insert(conn, 'repositories', repo_values)
                 conn.close()
                 print('insert for', repo.full_name, 'complete')
