@@ -1,0 +1,22 @@
+site:github.com inurl:issues intext:"technical debt" intext:refactoring intext:cost
+121 results as of 20.09.2020 (68 results as of 20.09.2020)
+
+result: number of shown result of the query search
+id:	id of the indiviudal found results (some results were redundant over other test iterations)
+score:	personal score of the issues based on my understanding of the desired output
+	none = no actual correlation to technical debt discussion in a sense that it was at least mentioned in the right context
+	low  = does have little to do with technical debt to an extend where this concept was communicated with the right intentions
+	high = does have strong discussions about technical debt regarding its concept, risks and approaches to refactoring
+
+result	id	score	url
+1	1	high	https://github.com/solid/node-solid-server/issues/788
+2	11	high	https://github.com/farkam135/GoIV/issues/296
+3	12	low	https://github.com/openmsupply/mobile/issues/442
+4	13	low	https://github.com/gatsbyjs/gatsby/issues/17934
+5	2	high	https://github.com/samvera/hyrax/issues/799
+6	14	high	https://github.com/dotnet/runtime/issues/21185
+7	15	low	https://github.com/firecracker-microvm/firecracker/issues/1167
+8	16	high	https://github.com/firecracker-microvm/firecracker/issues/1239
+9	17	low	https://github.com/bglusman/debt_ceiling/issues/2
+10	3	high	https://github.com/solid/node-solid-server/issues/946
+	

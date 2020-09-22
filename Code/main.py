@@ -299,7 +299,7 @@ def redundancy_check(conn, repo_id, repo_fullname):
             if not db_repo:
                 return False
             else:
-                print('\t\t', repo_fullname, repo_id, 'already in database. Skipped.')
+                print('\t\t', repo_fullname, repo_id, 'already in database. Skipped.0')
                 return True
     except Exception as e:
         print('Exception inside insert on line {}:'.format(sys.exc_info()[-1].tb_lineno),
