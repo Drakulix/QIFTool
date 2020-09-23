@@ -657,6 +657,7 @@ if __name__ == '__main__':
     download_path = init[2]
     loops_of_1000s = init[3]
     size = init[4]
+    auth.get_repo().get_issues().totalCount
     print(database_path)
     print(size)
     # repo = auth.get_repo('ytmdesktop/ytmdesktop')
