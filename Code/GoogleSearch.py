@@ -83,6 +83,7 @@ def read_config():
 # ---------------------------------------------------------------------------------------------------------------------#
 # functions to for handling the database
 
+
 def create_connection(path):
     """
     create a database connection to the SQLite database specified by db_file
@@ -125,63 +126,74 @@ def create_database(path):
     # choose path for the database to be created at or none if you want the database to be created in
     # the current directory of the main.py
     try:
-        issues_table_statement = """ CREATE TABLE IF NOT EXISTS issues (
-                                                            repo_id integer,
-                                                            issue_id integer PRIMARY KEY,
-                                                            issue_url text,
-                                                            issue_htmlurl text,
-                                                            issue_title text,
-                                                            issue_number integer,
-                                                            score integer,
-                                                            notes text,
-                                                            amount_of_comments integer,
-                                                            keywords text,
-                                                            labels text,
-                                                            linked_issues integer,
-                                                            read boolean,
-                                                            create_date text,
-                                                            closed_date text,
+        issues_table_statement = """ CREATE TABLE IF NOT EXISTS issues (repo_id integer,
+                                                                        issue_id integer PRIMARY KEY,
+                                                                        issue_url text,
+                                                                        issue_htmlurl text,
+                                                                        issue_title text,
+                                                                        issue_number integer,
+                                                                        score integer,
+                                                                        notes text,
+                                                                        amount_of_comments integer,
+                                                                        relevance integer,
+                                                                        keywords text,
+                                                                        labels text,
+                                                                        linked_issues integer,
+                                                                        read boolean,
+                                                                        create_date text,
+                                                                        closed_date text,
 
-                                                            FOREIGN KEY (repo_id) REFERENCES repositories (repo_id),
+                                                                        FOREIGN KEY (repo_id) 
+                                                                        REFERENCES repositories (repo_id),
+            
+                                                                        UNIQUE(repo_id, issue_id, issue_url, 
+                                                                                issue_htmlurl, issue_title, 
+                                                                                issue_number, score, notes, 
+                                                                                amount_of_comments, relevance, 
+                                                                                keywords, labels, linked_issues, 
+                                                                                read, create_date, closed_date) 
+                                                                            ON CONFLICT IGNORE
+                                                                        ); """
 
-                                                            UNIQUE(repo_id, issue_id, issue_url, issue_htmlurl,
-                                                            issue_title, keywords, issue_number, score, notes, 
-                                                            amount_of_comments, labels, linked_issues, read, 
-                                                            create_date, closed_date) ON CONFLICT IGNORE
-                                                            ); """
-
-        repositories_table_statement = """ CREATE TABLE IF NOT EXISTS repositories (
-                                            repo_id integer PRIMARY KEY,
-                                            repo_url text,
-                                            repo_htmlurl text,
-                                            repo_description
-                                            repo_creator text,
-                                            repo_name text,
-                                            repo_size integer,
-                                            
-                                            contributors integer,
-                                            
-                                            issues_amount integer,
-                                            issues_keywords text,
-                                            issues_labels text,
-
-                                            code_frequency_additions integer,
-                                            code_frequency_deletions integer,
-                                            code_frequency_ratio real,
-
-                                            UNIQUE(repo_id, repo_url, repo_htmlurl, repo_description, repo_creator, 
-                                                    repo_name, repo_size, contributors, issues_amount, issues_keywords, 
-                                                    issue labels, code_frequency_additions, code_frequency_deletions, 
-                                                    code_frequency_ratio) 
-                                                    ON CONFLICT IGNORE
-                                            ); """
+        repositories_table_statement = """ CREATE TABLE IF NOT EXISTS repositories (repo_id integer PRIMARY KEY,
+                                                                                    repo_url text,
+                                                                                    repo_htmlurl text,
+                                                                                    repo_description text,
+                                                                                    repo_creator text,
+                                                                                    repo_name text,
+                                                                                    repo_size integer,
+                                                                                    
+                                                                                    contributors integer,
+                                                                                    
+                                                                                    issues_amount integer,
+                                                                                    issues_keywords text,
+                                                                                    issues_labels text,
+                                        
+                                                                                    code_frequency_additions integer,
+                                                                                    code_frequency_deletions integer,
+                                                                                    code_frequency_ratio real,
+                                        
+                                                                                    UNIQUE(repo_id, repo_url, 
+                                                                                            repo_htmlurl, 
+                                                                                            repo_description, 
+                                                                                            repo_creator, 
+                                                                                            repo_name, repo_size, 
+                                                                                            contributors, issues_amount,
+                                                                                            issues_keywords, 
+                                                                                            issues_labels, 
+                                                                                            code_frequency_additions, 
+                                                                                            code_frequency_deletions, 
+                                                                                            code_frequency_ratio) 
+                                                                                            ON CONFLICT IGNORE
+                                                                                    ); """
 
         # create the database connection
         conn = create_connection(path)
 
         # create the tables if they do not exist yet
-        create_table(conn, repositories_table_statement)
         create_table(conn, issues_table_statement)
+        create_table(conn, repositories_table_statement)
+        conn.close()
     except Error as e:
         print('Exception inside create_database: on line {}:'.format(sys.exc_info()[-1].tb_lineno),
               e.with_traceback(e.__traceback__))
@@ -199,20 +211,17 @@ def insert(conn, table, values):
     insert_statement = None
     if table == 'issues':
         insert_statement = """INSERT INTO issues (repo_id, issue_id, issue_url, issue_htmlurl,
-                                                    issue_title, keywords, issue_number, score, notes, 
-                                                    amount_of_comments, labels, linked_issues, read, 
-                                                    create_date, closed_date) 
-                                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?); """
+                                                    issue_title, issue_number, score, notes, 
+                                                    amount_of_comments, relevance, keywords, labels, 
+                                                    linked_issues, read, create_date, closed_date) 
+                                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?); """
 
-    # ---------------------------------------------------------------------------------------------------------------- #
     elif table == 'repositories':
         insert_statement = """INSERT INTO repositories (repo_id, repo_url, repo_htmlurl, repo_description, repo_creator, 
                                                         repo_name, repo_size, contributors, issues_amount, 
                                                         issues_keywords, issue_labels, code_frequency_additions, 
                                                         code_frequency_deletions, code_frequency_ratio) 
-                                                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
-                                                                ?, ?); """
-    # ---------------------------------------------------------------------------------------------------------------- #
+                                                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?); """
     with conn:
         try:
             if insert_statement is not None:
@@ -224,26 +233,61 @@ def insert(conn, table, values):
                   e.with_traceback(e.__traceback__))
 
 
-def redundancy_check(conn, issue_id, issue_title):
+class RelevanceValues:
+    def __init__(self, old, new):
+        self.old = old
+        self.new = new
+
+
+def redundancy_check(conn, table, issue_or_repo_id, title_or_name):
     try:
         with conn:
             cursor = conn.cursor()
-            check_statement = """SELECT issue_id, read FROM issues WHERE issue_id = ?;"""
-            cursor.execute(check_statement, [issue_id])
-            db_issue = cursor.fetchall()
+            if table == 'issues':
+                check_statement = """SELECT issue_id FROM issues WHERE issue_id = ?;"""
+            elif table == 'repositories':
+                check_statement = """SELECT repo_id FROM repositories WHERE repo_id = ?;"""
+            cursor.execute(check_statement, [issue_or_repo_id])
+            db_entry = cursor.fetchall()
             cursor.close()
-            if not db_issue:
+            if not db_entry:
+                if table == 'issues':
+                    rel_values = relevance_check(issue_or_repo_id)
+                    if not rel_values:
+                        print('\t\t', title_or_name, issue_or_repo_id, 'already in database '
+                                                                       'but relevance changed from',
+                                                                        rel_values.old, 'to', rel_values.new)
+                print('\t\t', title_or_name, issue_or_repo_id, 'already in database.')
                 return False
-            elif db_issue[1]:
-                print('\t\t', issue_title, issue_id, 'already in database and read.')
-                return True
             else:
-                print(print('\t\t', issue_title, issue_id, 'already in database but not read yet'))
-                return False
+                return True
     except Exception as e:
         print('Exception inside insert on line {}:'.format(sys.exc_info()[-1].tb_lineno),
               e.with_traceback(e.__traceback__))
 
+
+def relevance_check(conn, issue_id, relevance):
+    """
+    function to check an issues relevance whenever it occours in the search again if its relevance is lower than the one
+    stored in the database
+    :return:
+    """
+    try:
+        with conn:
+            cursor = conn.cursor()
+            check_statement = """SELECT relevance FROM issues WHERE issue_id = ?;"""
+            cursor.execute(check_statement, [issue_id])
+            db_entry = cursor.fetchall()
+            if db_entry[0] > relevance:
+                update_statement = """UPDATE issues SET relevance = ? WHERE issue_id = ?;"""
+                cursor.execute(update_statement, [relevance, issue_id])
+                cursor.close()
+                return RelevanceValues(old=db_entry[0], new=relevance)
+            else:
+                return False
+    except Exception as e:
+        print('Exception inside insert on line {}:'.format(sys.exc_info()[-1].tb_lineno),
+              e.with_traceback(e.__traceback__))
 
 # ---------------------------------------------------------------------------------------------------------------------#
 # class and function for metric: StatsCodeFrequency
@@ -366,8 +410,8 @@ class RepoObj:
 
 
 class IssueObj:
-    def __init__(self, repo_id, id, url, html_url, title, number, score, notes, amount_of_comments, keywords, labels,
-                 linked_issues, read, create_date, closed_date):
+    def __init__(self, repo_id, id, url, html_url, title, number, score, notes, amount_of_comments, relevance, keywords,
+                 labels, linked_issues, read, create_date, closed_date):
         self.repo_id = repo_id
         self.id = id
         self.title = title
@@ -377,6 +421,7 @@ class IssueObj:
         self.score = score
         self.notes = notes
         self.amount_of_comments = amount_of_comments
+        self.relevance = relevance
         self.keywords = keywords
         self.labels = labels
         self.linked_issues = linked_issues
@@ -401,9 +446,13 @@ def google_search(query, google_api_key, google_cse_id, start, **kwargs):
     :param kwargs:
     :return: returns a dict-object with the 10 results found with this query
     """
-    service = build(serviceName='customsearch', version='v1', developerKey=google_api_key)
-    result = service.cse().list(q=query, cx=google_cse_id, exactTerms='comments', start=start, **kwargs).execute()
-    return result
+    try:
+        service = build(serviceName='customsearch', version='v1', developerKey=google_api_key)
+        result = service.cse().list(q=query, cx=google_cse_id, exactTerms='comments', start=start, **kwargs).execute()
+        return result
+    except Exception as e:
+        print('Exception inside Metrics_Contributors.contributors() on line {}:'.format(sys.exc_info()[-1].tb_lineno),
+              e.with_traceback(e.__traceback__))
 
 
 def query_maker(keywords):
@@ -469,42 +518,51 @@ def get_issue_dates(issue):
                           closed_at=issue.closed_at.strftime(str(issue.closed_at.date())))
 
 
-def page_iterator(auth, keywords, api_key, cse_id):
-    query = query_maker(keywords)
-    print(query)
-    for offset in range(1, 100, 10):
-        res_page = google_search(query=query, api_key=api_key, cse_id=cse_id, start=offset)
-        for res in res_page['items']:
-            repo_id = int(res['pagemap']['metatags'][0]['octolytics-dimension-repository_id'])
-            issue_num = int(res['link'].split('issues/')[1])
-
-            # check ob repo und issue bereits in der datenbank vorhanden sind
-            repo = auth.get_repo(repo_id)
-            issue = repo.get_issue(issue_num)
-
-            if redundancy_check(issue.id, issue.title):
-                continue
-            else:
-                if auth.get_rate_limit().core.remaining <= 0:
-                    reset_sleep(auth)
-                issue_dates = get_issue_dates(issue)
-                scf = stats_code_frequency(repo, auth)
-                cons = contributors(repo, auth)
-                issue_obj = IssueObj(repo_id=repo.id, id=issue.id, url=issue.url, html_url=issue.html_url,
-                                     title=issue.title, number=issue.number, score=0, notes='',
-                                     amount_of_comments=issue.get_comments().totalCount, keywords=db_keywords(keywords),
-                                     labels=get_labels(issue), linked_issues=get_linked_issues(issue), read=False,
-                                     create_date=issue_dates.created_at, closed_date=issue_dates.closed_at)
-                repo_obj = RepoObj(id=repo.id, url=repo.url, html_url=repo.html_url,
-                                   creator=repo.full_name.split('/')[0], name=repo.full_name.split('/')[1],
-                                   size=repo.size, contributors=cons.get_size(),
-                                   issues_amount=issue.get_issues().totalCount, issues_keywords=db_keywords(),
-                                   issues_labels=get_labels(),
-                                   code_frequency_additions=scf.get_adds(), code_frequency_deletions=scf.get_dels(),
-                                   code_frequency_ratio=scf.ratio)
-
-            print(offset, issue)
-
+def page_iterator(auth, keywords, google_api_key, google_cse_id, path_db):
+    try:
+        relevance = 0
+        query = query_maker(keywords)
+        print(query)
+        for offset in range(1, 100, 10):
+            res_page = google_search(query=query, google_api_key=google_api_key, google_cse_id=google_cse_id, start=offset)
+            for res in res_page['items']:
+                relevance += 1
+                print(relevance, res)
+        #         repo_id = int(res['pagemap']['metatags'][0]['octolytics-dimension-repository_id'])
+        #         issue_num = int(res['link'].split('issues/')[1])
+        #
+        #         # check ob repo und issue bereits in der datenbank vorhanden sind
+        #         repo = auth.get_repo(repo_id)
+        #         issue = repo.get_issue(issue_num)
+        #
+        #         if redundancy_check(issue.id, issue.title):
+        #             continue
+        #         else:
+        #             if auth.get_rate_limit().core.remaining <= 0:
+        #                 reset_sleep(auth)
+        #             issue_dates = get_issue_dates(issue)
+        #             scf = stats_code_frequency(repo, auth)
+        #             cons = contributors(repo, auth)
+        #             issue_obj = IssueObj(repo_id=repo.id, id=issue.id, url=issue.url, html_url=issue.html_url,
+        #                                  title=issue.title, number=issue.number, score=0, notes='',
+        #                                  amount_of_comments=issue.get_comments().totalCount, relevance=relevance,
+        #                                  keywords=db_keywords(keywords), labels=get_labels(issue),
+        #                                  linked_issues=get_linked_issues(issue), read=False,
+        #                                  create_date=issue_dates.created_at, closed_date=issue_dates.closed_at)
+        #             repo_obj = RepoObj(id=repo.id, url=repo.url, html_url=repo.html_url,
+        #                                creator=repo.full_name.split('/')[0], name=repo.full_name.split('/')[1],
+        #                                size=repo.size, contributors=cons.get_size(),
+        #                                issues_amount=issue.get_issues().totalCount, issues_keywords=db_keywords(),
+        #                                issues_labels=get_labels(),
+        #                                code_frequency_additions=scf.get_adds(),
+        #                                code_frequency_deletions=scf.get_dels(),
+        #                                code_frequency_ratio=scf.ratio)
+        #             conn = create_connection(path_db)
+        #             insert(conn, 'issues', issue_obj)
+        #             insert(conn, 'repositories', repo_obj)
+    except Exception as e:
+        print('Exception inside Metrics_Contributors.contributors() on line {}:'.format(sys.exc_info()[-1].tb_lineno),
+              e.with_traceback(e.__traceback__))
 
 def issue_print():
     pass
@@ -541,5 +599,6 @@ def init():
 if __name__ == '__main__':
     init = init()
     page_iterator(auth=init.auth, keywords=init.config.keywords,
-                  api_key=init.config.google_api_key, cse_id=init.config.google_cse_id)
+                  google_api_key=init.config.google_api_key, google_cse_id=init.config.google_cse_id,
+                  path_db=init.config.path_of_database)
 
