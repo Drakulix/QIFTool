@@ -219,7 +219,7 @@ def insert(conn, table, values):
     elif table == 'repositories':
         insert_statement = """INSERT INTO repositories (repo_id, repo_url, repo_htmlurl, repo_description, repo_creator, 
                                                         repo_name, repo_size, contributors, issues_amount, 
-                                                        issues_keywords, issue_labels, code_frequency_additions, 
+                                                        issues_keywords, issues_labels, code_frequency_additions, 
                                                         code_frequency_deletions, code_frequency_ratio) 
                                                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?); """
     with conn:
@@ -234,12 +234,13 @@ def insert(conn, table, values):
 
 
 class RelevanceValues:
-    def __init__(self, old, new):
+    def __init__(self, result, old=None, new=None):
+        self.result = result
         self.old = old
         self.new = new
 
 
-def redundancy_check(conn, table, issue_or_repo_id, title_or_name):
+def redundancy_check(conn, table, issue_or_repo_id, title_or_name, relevance):
     try:
         with conn:
             cursor = conn.cursor()
@@ -252,8 +253,8 @@ def redundancy_check(conn, table, issue_or_repo_id, title_or_name):
             cursor.close()
             if not db_entry:
                 if table == 'issues':
-                    rel_values = relevance_check(issue_or_repo_id)
-                    if not rel_values:
+                    rel_values = relevance_check(conn, issue_or_repo_id, relevance)
+                    if rel_values.result:
                         print('\t\t', title_or_name, issue_or_repo_id, 'already in database '
                                                                        'but relevance changed from',
                                                                         rel_values.old, 'to', rel_values.new)
@@ -278,13 +279,13 @@ def relevance_check(conn, issue_id, relevance):
             check_statement = """SELECT relevance FROM issues WHERE issue_id = ?;"""
             cursor.execute(check_statement, [issue_id])
             db_entry = cursor.fetchall()
-            if db_entry[0] > relevance:
-                update_statement = """UPDATE issues SET relevance = ? WHERE issue_id = ?;"""
-                cursor.execute(update_statement, [relevance, issue_id])
-                cursor.close()
-                return RelevanceValues(old=db_entry[0], new=relevance)
-            else:
-                return False
+            if db_entry:
+                if db_entry[0] > relevance:
+                    update_statement = """UPDATE issues SET relevance = ? WHERE issue_id = ?;"""
+                    cursor.execute(update_statement, [relevance, issue_id])
+                    cursor.close()
+                    return RelevanceValues(result=True, old=db_entry[0], new=relevance)
+            return RelevanceValues(result=False)
     except Exception as e:
         print('Exception inside insert on line {}:'.format(sys.exc_info()[-1].tb_lineno),
               e.with_traceback(e.__traceback__))
@@ -392,12 +393,13 @@ def reset_sleep(auth):
 
 
 class RepoObj:
-    def __init__(self, id, url, html_url, creator, name, size, contributors, issues_amount, issues_keywords,
+    def __init__(self, id, url, html_url, description, creator, name, size, contributors, issues_amount, issues_keywords,
                  issues_labels, code_frequency_additions, code_frequency_deletions, code_frequency_ratio):
         self.id = id
         self.url = url
         self.html_url = html_url
         self.creator = creator
+        self.description = description
         self.name = name
         self.size = size
         self.contributors = contributors
@@ -410,13 +412,13 @@ class RepoObj:
 
 
 class IssueObj:
-    def __init__(self, repo_id, id, url, html_url, title, number, score, notes, amount_of_comments, relevance, keywords,
-                 labels, linked_issues, read, create_date, closed_date):
+    def __init__(self, repo_id, id, url, html_url, title, number, score, notes, amount_of_comments,
+                 relevance, keywords, labels, linked_issues, read, create_date, closed_date):
         self.repo_id = repo_id
         self.id = id
-        self.title = title
         self.url = url
         self.html = html_url
+        self.title = title
         self.number = number
         self.score = score
         self.notes = notes
@@ -525,47 +527,95 @@ def page_iterator(auth, keywords, google_api_key, google_cse_id, path_db):
         print(query)
         for offset in range(1, 100, 10):
             res_page = google_search(query=query, google_api_key=google_api_key, google_cse_id=google_cse_id, start=offset)
+            print(res_page)
             for res in res_page['items']:
                 relevance += 1
-                print(relevance, res)
-        #         repo_id = int(res['pagemap']['metatags'][0]['octolytics-dimension-repository_id'])
-        #         issue_num = int(res['link'].split('issues/')[1])
-        #
-        #         # check ob repo und issue bereits in der datenbank vorhanden sind
-        #         repo = auth.get_repo(repo_id)
-        #         issue = repo.get_issue(issue_num)
-        #
-        #         if redundancy_check(issue.id, issue.title):
-        #             continue
-        #         else:
-        #             if auth.get_rate_limit().core.remaining <= 0:
-        #                 reset_sleep(auth)
-        #             issue_dates = get_issue_dates(issue)
-        #             scf = stats_code_frequency(repo, auth)
-        #             cons = contributors(repo, auth)
-        #             issue_obj = IssueObj(repo_id=repo.id, id=issue.id, url=issue.url, html_url=issue.html_url,
-        #                                  title=issue.title, number=issue.number, score=0, notes='',
-        #                                  amount_of_comments=issue.get_comments().totalCount, relevance=relevance,
-        #                                  keywords=db_keywords(keywords), labels=get_labels(issue),
-        #                                  linked_issues=get_linked_issues(issue), read=False,
-        #                                  create_date=issue_dates.created_at, closed_date=issue_dates.closed_at)
-        #             repo_obj = RepoObj(id=repo.id, url=repo.url, html_url=repo.html_url,
-        #                                creator=repo.full_name.split('/')[0], name=repo.full_name.split('/')[1],
-        #                                size=repo.size, contributors=cons.get_size(),
-        #                                issues_amount=issue.get_issues().totalCount, issues_keywords=db_keywords(),
-        #                                issues_labels=get_labels(),
-        #                                code_frequency_additions=scf.get_adds(),
-        #                                code_frequency_deletions=scf.get_dels(),
-        #                                code_frequency_ratio=scf.ratio)
-        #             conn = create_connection(path_db)
-        #             insert(conn, 'issues', issue_obj)
-        #             insert(conn, 'repositories', repo_obj)
+                # print(relevance, res)
+                repo_id = int(res['pagemap']['metatags'][0]['octolytics-dimension-repository_id'])
+                issue_num = int(res['link'].split('issues/')[1])
+
+                # check ob repo und issue bereits in der datenbank vorhanden sind
+                repo = auth.get_repo(repo_id)
+                issue = repo.get_issue(issue_num)
+                conn = create_connection(path_db)
+                if redundancy_check(conn, 'issues', issue.id, issue.title, relevance):
+                    continue
+                else:
+                    if auth.get_rate_limit().core.remaining <= 0:
+                        reset_sleep(auth)
+                    issue_dates = get_issue_dates(issue)
+                    scf = stats_code_frequency(repo, auth)
+                    cons = contributors(repo, auth)
+                    issue_obj = IssueObj(repo_id=repo.id, id=issue.id, url=issue.url, html_url=issue.html_url,
+                                         title=issue.title, number=issue.number, score=0, notes='',
+                                         amount_of_comments=issue.get_comments().totalCount, relevance=relevance,
+                                         keywords=db_keywords(keywords), labels=get_labels(issue),
+                                         linked_issues=get_linked_issues(issue), read=False,
+                                         create_date=issue_dates.created_at, closed_date=issue_dates.closed_at)
+                    insert(conn, 'issues', issue_obj)
+                    if redundancy_check(conn, 'repositories', repo_id, repo.full_name, relevance):
+                        continue
+                    else:
+                        repo_obj = RepoObj(id=repo.id, url=repo.url, html_url=repo.html_url,
+                                           description=repo.description,
+                                           creator=repo.full_name.split('/')[0], name=repo.full_name.split('/')[1],
+                                           size=repo.size, contributors=cons.get_size(),
+                                           issues_amount=repo.get_issues().totalCount,
+                                           issues_keywords=db_keywords(keywords),
+                                           issues_labels=get_labels(issue),
+                                           code_frequency_additions=scf.get_adds(),
+                                           code_frequency_deletions=scf.get_dels(),
+                                           code_frequency_ratio=scf.ratio)
+                        insert(conn, 'repositories', repo_obj)
+                issue_print(conn, issue.id, repo_id)
     except Exception as e:
         print('Exception inside Metrics_Contributors.contributors() on line {}:'.format(sys.exc_info()[-1].tb_lineno),
               e.with_traceback(e.__traceback__))
 
-def issue_print():
-    pass
+
+class IssuePrint:
+    def __init__(self, repo_name, repo_description, issue_id, issue_htmlurl,
+                 issue_title, score, relevance, linked_issues):
+        self.repo_name = repo_name
+        self.repo_description = repo_description
+        self.issue_id = issue_id
+        self.issue_htmlurl = issue_htmlurl
+        self.issue_title = issue_title
+        self.score = score
+        self.relevance = relevance
+        self.linked_issues= linked_issues
+
+
+def issue_print(conn, issue_id, repo_id):
+    try:
+        with conn:
+            cursor = conn.cursor()
+            check_statement = """SELECT r.repo_name, r.repo_description, i.issue_id, i.issue_htmlurl, 
+                                i.issue_title, i.score, i.relevance, i.linked_issues 
+                                FROM issues AS i INNER JOIN repositories AS r ON i.repo_id = r.repo_id
+                                WHERE issue_id = ?;"""
+            cursor.execute(check_statement, [issue_id])
+            db_entry = cursor.fetchall()[0]
+            cursor.close()
+            if not db_entry:
+                print('something went wrong')
+            else:
+                issue_print = IssuePrint(repo_name=db_entry[0], repo_description=db_entry[1], issue_id=db_entry[2],
+                                         issue_htmlurl=db_entry[3], issue_title=db_entry[4], score=db_entry[5],
+                                         relevance=db_entry[6], linked_issues=db_entry[7])
+                print('-----------------------------------------------------------------------------------------------')
+                print('{:>17}'.format(*'\t\thtml_url:'), issue_print.issue_htmlurl)
+                print('{:>17}'.format(*'\t\trepo_name:'), issue_print.repo_name)
+                print('{:>17}'.format(*'repo_description:'), issue_print.repo_description)
+                print('{:>17}'.format(*'\t\tissue_id:'), issue_print.issue_id)
+                print('{:>17}'.format(*'\tissue_title:'), issue_print.issue_title)
+                print('{:>17}'.format(*'\t\tscore:\t'), issue_print.score)
+                print('{:>17}'.format(*'\trelevance:'),  issue_print.relevance)
+                print('{:>17}'.format(*'linked_issues:'), issue_print.linked_issues)
+                print('-----------------------------------------------------------------------------------------------')
+    except Exception as e:
+        print('Exception inside insert on line {}:'.format(sys.exc_info()[-1].tb_lineno),
+              e.with_traceback(e.__traceback__))
 
 
 
