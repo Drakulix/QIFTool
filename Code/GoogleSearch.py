@@ -139,7 +139,6 @@ def create_database(path):
                                                                         keywords text,
                                                                         labels text,
                                                                         linked_issues integer,
-                                                                        read boolean,
                                                                         create_date text,
                                                                         closed_date text,
 
@@ -150,16 +149,15 @@ def create_database(path):
                                                                                 issue_htmlurl, issue_title, 
                                                                                 issue_number, score, notes, 
                                                                                 amount_of_comments, relevance, 
-                                                                                keywords, labels, linked_issues, 
-                                                                                read, create_date, closed_date) 
+                                                                                keywords, labels, linked_issues,
+                                                                                create_date, closed_date) 
                                                                             ON CONFLICT IGNORE
                                                                         ); """
 
         repositories_table_statement = """ CREATE TABLE IF NOT EXISTS repositories (repo_id integer PRIMARY KEY,
                                                                                     repo_url text,
                                                                                     repo_htmlurl text,
-                                                                                    repo_description text,
-                                                                                    repo_readme text,
+                                                                                    repo_about text,
                                                                                     repo_creator text,
                                                                                     repo_name text,
                                                                                     repo_size integer,
@@ -177,8 +175,7 @@ def create_database(path):
                                         
                                                                                     UNIQUE(repo_id, repo_url, 
                                                                                             repo_htmlurl, 
-                                                                                            repo_description,
-                                                                                            repo_readme, 
+                                                                                            repo_about, 
                                                                                             repo_creator, 
                                                                                             repo_name, repo_size, 
                                                                                             languages,
@@ -217,16 +214,16 @@ def insert(conn, table, values):
         insert_statement = """INSERT INTO issues (repo_id, issue_id, issue_url, issue_htmlurl,
                                                     issue_title, issue_number, score, notes, 
                                                     amount_of_comments, relevance, keywords, labels, 
-                                                    linked_issues, read, create_date, closed_date) 
-                                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?); """
+                                                    linked_issues, create_date, closed_date) 
+                                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?); """
 
     elif table == 'repositories':
-        insert_statement = """INSERT INTO repositories (repo_id, repo_url, repo_htmlurl, repo_description, repo_readme, 
+        insert_statement = """INSERT INTO repositories (repo_id, repo_url, repo_htmlurl, repo_about, 
                                                         repo_creator, repo_name, repo_size, languages, contributors, 
                                                         issues_amount, issues_keywords, issues_labels, 
                                                         code_frequency_additions, code_frequency_deletions, 
                                                         code_frequency_ratio) 
-                                                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?); """
+                                                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?); """
     with conn:
         try:
             if insert_statement is not None:
@@ -256,7 +253,6 @@ def redundancy_check(conn, table, issue_or_repo_id, title_or_name, relevance):
             cursor.execute(check_statement, [issue_or_repo_id])
             db_entry = cursor.fetchall()
             cursor.close()
-            print(db_entry)
             if db_entry:
                 if table == 'issues':
                     rel_values = relevance_check(conn, issue_or_repo_id, relevance)
@@ -289,11 +285,12 @@ def relevance_check(conn, issue_id, relevance):
                     update_statement = """UPDATE issues SET relevance = ? WHERE issue_id = ?;"""
                     cursor.execute(update_statement, [relevance, issue_id])
                     cursor.close()
-                    return RelevanceValues(result=True, old=db_entry[0], new=relevance)
+                    return RelevanceValues(result=True, old=db_entry[0][0], new=relevance)
             return RelevanceValues(result=False)
     except Exception as e:
         print('Exception inside insert on line {}:'.format(sys.exc_info()[-1].tb_lineno),
               e.with_traceback(e.__traceback__))
+
 
 # ---------------------------------------------------------------------------------------------------------------------#
 # class and function for metric: StatsCodeFrequency
@@ -398,15 +395,14 @@ def reset_sleep(auth):
 
 
 class RepoObj:
-    def __init__(self, id, url, html_url, description, readme, creator, name, size, languages, contributors,
+    def __init__(self, id, url, html_url, about, creator, name, size, languages, contributors,
                  issues_amount, issues_keywords, issues_labels,
                  code_frequency_additions, code_frequency_deletions, code_frequency_ratio):
         self.id = id
         self.url = url
         self.html_url = html_url
+        self.about = about
         self.creator = creator
-        self.description = description
-        self.readme = readme
         self.name = name
         self.size = size
         self.languages = languages
@@ -421,7 +417,7 @@ class RepoObj:
 
 class IssueObj:
     def __init__(self, repo_id, id, url, html_url, title, number, score, notes, amount_of_comments,
-                 relevance, keywords, labels, linked_issues, read, create_date, closed_date):
+                 relevance, keywords, labels, linked_issues, create_date, closed_date):
         self.repo_id = repo_id
         self.id = id
         self.url = url
@@ -435,7 +431,6 @@ class IssueObj:
         self.keywords = keywords
         self.labels = labels
         self.linked_issues = linked_issues
-        self.read = read
         self.create_date = create_date
         self.closed_date = closed_date
 
@@ -541,7 +536,7 @@ def page_iterator(auth, keywords, google_api_key, google_cse_id, path_db):
         print(query)
         for offset in range(1, 100, 10):
             res_page = google_search(query=query, google_api_key=google_api_key, google_cse_id=google_cse_id, start=offset)
-            print(len(res_page))
+            print(res_page.keys)
             for res in res_page['items']:
                 relevance += 1
                 repo_id = int(res['pagemap']['metatags'][0]['octolytics-dimension-repository_id'])
@@ -552,7 +547,7 @@ def page_iterator(auth, keywords, google_api_key, google_cse_id, path_db):
                 issue = repo.get_issue(issue_num)
                 conn = create_connection(path_db)
                 if redundancy_check(conn, 'issues', issue.id, issue.title, relevance):
-                    issue_print(conn, issue.id, repo_id)
+                    issue_print(conn, issue.id)
                     continue
                 else:
                     if auth.get_rate_limit().core.remaining <= 0:
@@ -564,15 +559,15 @@ def page_iterator(auth, keywords, google_api_key, google_cse_id, path_db):
                                          title=issue.title, number=issue.number, score=0, notes='',
                                          amount_of_comments=issue.get_comments().totalCount, relevance=relevance,
                                          keywords=db_keywords(keywords), labels=get_labels(issue),
-                                         linked_issues=get_linked_issues(issue), read=False,
+                                         linked_issues=get_linked_issues(issue),
                                          create_date=issue_dates.created_at, closed_date=issue_dates.closed_at)
                     insert(conn, 'issues', issue_obj)
                     if redundancy_check(conn, 'repositories', repo_id, repo.full_name, relevance):
-                        issue_print(conn, issue.id, repo_id)
+                        issue_print(conn, issue.id)
                         continue
                     else:
                         repo_obj = RepoObj(id=repo.id, url=repo.url, html_url=repo.html_url,
-                                           description=repo.description, readme=repo.get_readme().content,
+                                           about=repo.description,
                                            creator=repo.full_name.split('/')[0], name=repo.full_name.split('/')[1],
                                            size=repo.size, languages=get_languages(repo), contributors=cons.get_size(),
                                            issues_amount=repo.get_issues().totalCount,
@@ -582,32 +577,32 @@ def page_iterator(auth, keywords, google_api_key, google_cse_id, path_db):
                                            code_frequency_deletions=scf.get_dels(),
                                            code_frequency_ratio=scf.ratio)
                         insert(conn, 'repositories', repo_obj)
-                issue_print(conn, issue.id, repo_id)
+                issue_print(conn, issue.id)
     except Exception as e:
         print('Exception inside page_iterator() on line {}:'.format(sys.exc_info()[-1].tb_lineno),
               repr(e))
 
 
 class IssuePrint:
-    def __init__(self, repo_name, repo_description, readme, issue_id, issue_htmlurl,
-                 issue_title, score, relevance, linked_issues):
+    def __init__(self, repo_name, repo_about, issue_id, issue_htmlurl,
+                 issue_title, score, relevance, linked_issues, notes):
         self.repo_name = repo_name
-        self.repo_description = repo_description
-        self.repo_readme = readme
+        self.repo_about = repo_about
         self.issue_id = issue_id
         self.issue_htmlurl = issue_htmlurl
         self.issue_title = issue_title
         self.score = score
         self.relevance = relevance
-        self.linked_issues= linked_issues
+        self.linked_issues = linked_issues
+        self.notes = notes
 
 
-def issue_print(conn, issue_id, repo_id):
+def issue_print(conn, issue_id):
     try:
         with conn:
             cursor = conn.cursor()
-            check_statement = """SELECT r.repo_name, r.repo_description, r.readme, i.issue_id, i.issue_htmlurl, 
-                                i.issue_title, i.score, i.relevance, i.linked_issues 
+            check_statement = """SELECT r.repo_name, r.repo_about, i.issue_id, i.issue_htmlurl, 
+                                i.issue_title, i.score, i.relevance, i.linked_issues, i.notes
                                 FROM issues AS i INNER JOIN repositories AS r ON i.repo_id = r.repo_id
                                 WHERE issue_id = ?;"""
             cursor.execute(check_statement, [issue_id])
@@ -616,24 +611,115 @@ def issue_print(conn, issue_id, repo_id):
             if not db_entry:
                 print('something went wrong')
             else:
-                issue_print = IssuePrint(repo_name=db_entry[0], repo_description=db_entry[1], readme=db_entry[2],
-                                         issue_id=db_entry[3], issue_htmlurl=db_entry[4], issue_title=db_entry[5],
-                                         score=db_entry[6], relevance=db_entry[7], linked_issues=db_entry[8])
+                issue_print = IssuePrint(repo_name=db_entry[0], repo_about=db_entry[1],
+                                         issue_id=db_entry[2], issue_htmlurl=db_entry[3], issue_title=db_entry[4],
+                                         score=db_entry[5], relevance=db_entry[6], linked_issues=db_entry[7],
+                                         notes=db_entry[8])
                 print('-----------------------------------------------------------------------------------------------')
                 print('repo_name:'.rjust(17), issue_print.repo_name)
-                print('repo_description:'.rjust(17), issue_print.repo_description)
-                print('repo_readme:'.rjust(17), issue_print.readme)
+                print('repo_about:'.rjust(17), issue_print.repo_about)
                 print('html_url:'.rjust(17), issue_print.issue_htmlurl)
                 print('issue_id:'.rjust(17), issue_print.issue_id)
                 print('issue_title:'.rjust(17), issue_print.issue_title)
                 print('score:'.rjust(17), issue_print.score)
                 print('relevance:'.rjust(17), issue_print.relevance)
                 print('linked_issues:'.rjust(17), issue_print.linked_issues)
+                print('notes:'.rjust(17), issue_print.notes)
                 print('-----------------------------------------------------------------------------------------------')
     except Exception as e:
-        print('Exception inside insert on line {}:'.format(sys.exc_info()[-1].tb_lineno),
+        print('Exception inside issue_print() on line {}:'.format(sys.exc_info()[-1].tb_lineno),
               e.with_traceback(e.__traceback__))
 
+
+# ---------------------------------------------------------------------------------------------------------------------#
+
+def input_handler(init):
+    # wait for keyboard input
+    conn = create_connection(init.config.path_of_database)
+    func_input = input('\nplease choose one of the following functions\n'
+                       '\tsq<enter key>\tto use the query created by the config '
+                       'and give out each result for further inspection and entry into the database\n'
+                       '\tsn<tab><issue_id><tab><message><enter key>\tto set notes for a certain issue\n'
+                       '\tss<tab><issue_id><tab><score><enter key>\tto set the score for a certain issue\n'
+                       '\tgiws<tab><operator(<, >, =, ...)><tab><score><enter key>\t '
+                       'to get all issues stored in the database '
+                       'where the score fulfills the condition\n'
+                       '\tquit<enter key>\tto terminate this program\n\n')
+    if func_input.split('\t')[0] == 'sq':
+        page_iterator(auth=init.auth, keywords=init.config.keywords,
+                      google_api_key=init.config.google_api_key, google_cse_id=init.config.google_cse_id,
+                      path_db=init.config.path_of_database)
+    elif func_input.split('\t')[0] == 'sn':
+        issue_id = func_input.split('\t')[1]
+        message = func_input.split('\t')[2]
+        print(message)
+        set_notes_to_issue(issue_id, message, conn)
+    elif func_input.split('\t')[0] == 'ss':
+        issue_id = func_input.split('\t')[1]
+        score = func_input.split('\t')[2]
+        set_score_of_issue(issue_id, score, conn)
+    elif func_input.split('\t')[0] == 'giws':
+        operator = func_input.split('\t')[1]
+        score = func_input.split('\t')[2]
+        get_issues_where_score(conn, operator, score)
+    elif func_input.split('\t')[0] == 'quit':
+        quit()
+    input_handler(init)
+
+
+def set_notes_to_issue(issue_id, message, conn):
+    try:
+        with conn:
+            cursor = conn.cursor()
+            update_statement = """UPDATE issues SET notes = ? WHERE issue_id = ?;"""
+            cursor.execute(update_statement, [message, issue_id])
+
+            check_statement = """SELECT notes FROM issues WHERE issue_id = ?;"""
+            cursor.execute(check_statement, [issue_id])
+            db_entry = cursor.fetchall()[0]
+            if not db_entry:
+                print('Note was failed to add.')
+            else:
+                print('Note was successfully added')
+            cursor.close()
+    except Exception as e:
+        print('Exception inside set_notes_to_issue() on line {}:'.format(sys.exc_info()[-1].tb_lineno),
+              e.with_traceback(e.__traceback__))
+
+
+def set_score_of_issue(issue_id, score, conn):
+    try:
+        with conn:
+            cursor = conn.cursor()
+            update_statement = """UPDATE issues SET score = ? WHERE issue_id = ?;"""
+            cursor.execute(update_statement, [int(score), issue_id])
+
+            check_statement = """SELECT score FROM issues WHERE issue_id = ?;"""
+            cursor.execute(check_statement, [issue_id])
+            db_entry = cursor.fetchall()[0]
+            if not db_entry:
+                print('Score was failed to add.')
+            else:
+                print('Score was successfully set to ' + str(db_entry[0]))
+            cursor.close()
+    except Exception as e:
+        print('Exception inside set_score_of_issue() on line {}:'.format(sys.exc_info()[-1].tb_lineno),
+              e.with_traceback(e.__traceback__))
+
+
+def get_issues_where_score(conn, operator, score):
+    try:
+        with conn:
+            cursor = conn.cursor()
+            select_statement = """SELECT issue_id FROM issues WHERE score """ + operator + """ ? ORDER BY score DESC;"""
+            cursor.execute(select_statement, [score])
+            db_entry = cursor.fetchall()[0]
+            for entry in db_entry:
+                issue_print(conn, entry)
+            cursor.close()
+    except Exception as e:
+        print('Exception inside issue_print() on line {}:'.format(sys.exc_info()[-1].tb_lineno),
+              e.with_traceback(e.__traceback__))
 
 
 # ---------------------------------------------------------------------------------------------------------------------#
@@ -647,7 +733,7 @@ class Init:
 
 def init():
     """
-    function to initialize this programm
+    function to initialize this program
     :return: Init-object
     """
     if create_config():
@@ -665,7 +751,5 @@ def init():
 # site:github.com inurl:issues OR inurl:pulls intext:"technical debt" intext:refactoring intext:cost
 if __name__ == '__main__':
     init = init()
-    page_iterator(auth=init.auth, keywords=init.config.keywords,
-                  google_api_key=init.config.google_api_key, google_cse_id=init.config.google_cse_id,
-                  path_db=init.config.path_of_database)
+    input_handler(init)
 
