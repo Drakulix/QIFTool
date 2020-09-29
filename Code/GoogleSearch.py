@@ -227,6 +227,7 @@ def insert(conn, table, values):
     with conn:
         try:
             if insert_statement is not None:
+                print(list(vars(values).values()))
                 cursor.execute(insert_statement, list(vars(values).values()))
             else:
                 print('table selection went wrong!')
@@ -235,14 +236,7 @@ def insert(conn, table, values):
                   e.with_traceback(e.__traceback__))
 
 
-class RelevanceValues:
-    def __init__(self, result, old=None, new=None):
-        self.result = result
-        self.old = old
-        self.new = new
-
-
-def redundancy_check(conn, table, issue_or_repo_id, title_or_name, relevance):
+def redundancy_check(conn, table, issue_or_repo_id, title_or_name, relevance, keywords):
     try:
         with conn:
             cursor = conn.cursor()
@@ -256,16 +250,36 @@ def redundancy_check(conn, table, issue_or_repo_id, title_or_name, relevance):
             if db_entry:
                 if table == 'issues':
                     rel_values = relevance_check(conn, issue_or_repo_id, relevance)
-                    if rel_values.result:
+                    keywords_values = keywords_check(conn, issue_or_repo_id, keywords)
+                    if rel_values.result and keywords_values.result:
+                        print('\t\t', title_or_name, issue_or_repo_id, 'already in database '
+                                                                       'but relevance changed from',
+                                                                        rel_values.old, 'to', rel_values.new,
+                                                                       'and\n', 'keywords changed from'.rjust(24),
+                                                                        keywords_values.old_keywords, 'to',
+                                                                        keywords_values.new_keywords)
+                    elif rel_values.result:
                         print('\t\t', title_or_name, issue_or_repo_id, 'already in database '
                                                                        'but relevance changed from',
                                                                         rel_values.old, 'to', rel_values.new)
+                    elif keywords_values.result:
+                        print('\t\t', title_or_name, issue_or_repo_id, 'already in database '
+                                                                       'but keywords changed from',
+                                                                        keywords_values.old_keywords, 'to',
+                                                                        keywords_values.new_keywords)
                 return True
             else:
                 return False
     except Exception as e:
         print('Exception inside insert on line {}:'.format(sys.exc_info()[-1].tb_lineno),
               e.with_traceback(e.__traceback__))
+
+
+class RelevanceValues:
+    def __init__(self, result, old=None, new=None):
+        self.result = result
+        self.old = old
+        self.new = new
 
 
 def relevance_check(conn, issue_id, relevance):
@@ -288,7 +302,41 @@ def relevance_check(conn, issue_id, relevance):
                     return RelevanceValues(result=True, old=db_entry[0][0], new=relevance)
             return RelevanceValues(result=False)
     except Exception as e:
-        print('Exception inside insert on line {}:'.format(sys.exc_info()[-1].tb_lineno),
+        print('Exception inside relevance_check() on line {}:'.format(sys.exc_info()[-1].tb_lineno),
+              e.with_traceback(e.__traceback__))
+
+
+class KeywordsValues:
+    def __init__(self, result=False, old_keywords='', current_keywords='', new_keywords=''):
+        self.result = result
+        self.old_keywords = old_keywords
+        self.current_keywords = current_keywords
+        self.new_keywords = new_keywords
+
+
+def keywords_check(conn, issue_id, keywords):
+    try:
+        with conn:
+            cursor = conn.cursor()
+            check_statement = """SELECT keywords FROM issues WHERE issue_id = ?;"""
+            cursor.execute(check_statement, [issue_id])
+            db_entry = cursor.fetchall()
+            if db_entry:
+                keywords_values = KeywordsValues()
+                keywords_values.old_keywords = db_entry[0][0]
+                keywords_values.current_keywords = keywords.split('\t')
+                for word in keywords_values.current_keywords:
+                    if word not in db_entry[0][0].split(', '):
+                        keywords += '\t' + word
+                keywords_values.new_keywords = db_keywords(keywords)
+                update_statement = """UPDATE issues SET keywords = ? WHERE issue_id = ?;"""
+                cursor.execute(update_statement, [keywords_values.new_keywords, issue_id])
+                cursor.close()
+                if keywords_values.new_keywords not in keywords_values.old_keywords:
+                    keywords_values.result = True
+            return keywords_values
+    except Exception as e:
+        print('Exception inside keywords_check() on line {}:'.format(sys.exc_info()[-1].tb_lineno),
               e.with_traceback(e.__traceback__))
 
 
@@ -441,54 +489,23 @@ class IssueDates:
         self.closed_at = closed_at
 
 
-def google_search(query, google_api_key, google_cse_id, start, **kwargs):
-    """
-    function that uses a search query to look for in the web using google as a search engine
-    :param query: read from an outside file that contains keywords to filter by
-    :param google_api_key: read from an outside file to use the custom search engine
-    :param google_cse_id: read from an outside file to use the search engine
-    :param start: offset to tell google what results to deliver since the max of results given at a time is 10
-    :param kwargs:
-    :return: returns a dict-object with the 10 results found with this query
-    """
-    try:
-        service = build(serviceName='customsearch', version='v1', developerKey=google_api_key)
-        result = service.cse().list(q=query, cx=google_cse_id, exactTerms='comments', start=start, **kwargs).execute()
-        return result
-    except Exception as e:
-        print('Exception inside Metrics_Contributors.contributors() on line {}:'.format(sys.exc_info()[-1].tb_lineno),
-              e.with_traceback(e.__traceback__))
-
-
-def query_maker(keywords):
-    """
-    function to build the search query with the desired keywords
-    :param keywords: string of keywords extracted from the config file
-    :return: string of the final query
-    """
-    query = 'inurl:issues '
-    for keyword in keywords.split('\t'):
-        if ' ' in keyword:
-            keyword = '"' + keyword + '"'
-        query += 'intext:' + keyword + ' '
-    return query
-
-
 def db_keywords(keywords):
     """
     function to make a suitable string out of the given keywords to insert into the database
     :param keywords: string of keywords extracted from the config file
     :return: the changed string to fit into the database
     """
-    keywords_str = ''
-    keywords_list = keywords.split('\t')
-    if len(keywords_list) == 1:
+    try:
+        keywords_str = ''
+        keywords_list = keywords.split('\t')
+        if len(keywords_list) >= 1:
+            for keyword in keywords_list[:-1]:
+                keywords_str += keyword + ', '
+            keywords_str += keywords_list[-1]
         return keywords_str
-    elif len(keywords_list) > 1:
-        for keyword in keywords_list[:-1]:
-            keywords_str += keyword + ', '
-        keywords_str += keywords[-1]
-    return keywords_str
+    except Exception as e:
+        print('Exception inside issue_print() on line {}:'.format(sys.exc_info()[-1].tb_lineno),
+              e.with_traceback(e.__traceback__))
 
 
 def get_labels(issue):
@@ -497,20 +514,50 @@ def get_labels(issue):
     :param issue: the issue of the labels to extract
     :return: a string suitable for an insert into the database
     """
-    labels_str = ''
-    for label in issue.get_labels():
-        labels_str += label.name + ', '
-    return labels_str
+    try:
+        labels_str = ''
+        labels = issue.get_labels()
+        print(labels)
+        if labels.totalCount >= 1:
+            for label in labels[:-1]:
+                labels_str += label.name + ', '
+            labels_str += labels[-1]
+        return labels_str
+    except Exception as e:
+        print('Exception inside get_labels() on line {}:'.format(sys.exc_info()[-1].tb_lineno),
+              e.with_traceback(e.__traceback__))
 
 
 def get_languages(repo):
-    languages_str = ''
-    for lang in repo.get_languages():
-        languages_str += lang + ', '
-    return languages_str
+    try:
+        languages_str = ''
+        languages = repo.get_languages()
+        for lang in languages[:-1]:
+            languages_str += lang + ', '
+        languages_str += languages[-1]
+        return languages_str
+    except Exception as e:
+        print('Exception inside get_languages() on line {}:'.format(sys.exc_info()[-1].tb_lineno),
+              e.with_traceback(e.__traceback__))
 
 
-def get_linked_issues(issue):
+def linked_issue(repo, issue_number):
+    try:
+        issue = repo.get_issue(issue_number)
+        return issue
+    except Exception as e:
+        return None
+
+
+def get_linked_issues(repo, issue):
+    linked_issues_list = []
+    for comment in issue.get_comments():
+        split_list = comment.split('#')
+        for linked_issue in split_list:
+            temp_issue = linked_issue(repo, linked_issue[:6])
+            if temp_issue is not None:
+                linked_issues_list.append([linked_issue[:6], temp_issue.html_url])
+
     # TODO
     linked_issues = ''
     return linked_issues
@@ -522,65 +569,15 @@ def get_issue_dates(issue):
     :param issue: issue-object
     :return: IssueDates-object
     """
-    if issue.closed_at is None:
-        return IssueDates(created_at=issue.created_at.strftime(str(issue.created_at.date())))
-    else:
-        return IssueDates(created_at=issue.created_at.strftime(str(issue.created_at.date())),
-                          closed_at=issue.closed_at.strftime(str(issue.closed_at.date())))
-
-
-def page_iterator(auth, keywords, google_api_key, google_cse_id, path_db):
     try:
-        relevance = 0
-        query = query_maker(keywords)
-        print(query)
-        for offset in range(1, 100, 10):
-            res_page = google_search(query=query, google_api_key=google_api_key, google_cse_id=google_cse_id, start=offset)
-            print(res_page.keys)
-            for res in res_page['items']:
-                relevance += 1
-                repo_id = int(res['pagemap']['metatags'][0]['octolytics-dimension-repository_id'])
-                issue_num = int(res['link'].split('issues/')[1])
-
-                # check ob repo und issue bereits in der datenbank vorhanden sind
-                repo = auth.get_repo(repo_id)
-                issue = repo.get_issue(issue_num)
-                conn = create_connection(path_db)
-                if redundancy_check(conn, 'issues', issue.id, issue.title, relevance):
-                    issue_print(conn, issue.id)
-                    continue
-                else:
-                    if auth.get_rate_limit().core.remaining <= 0:
-                        reset_sleep(auth)
-                    issue_dates = get_issue_dates(issue)
-                    scf = stats_code_frequency(repo, auth)
-                    cons = contributors(repo, auth)
-                    issue_obj = IssueObj(repo_id=repo.id, id=issue.id, url=issue.url, html_url=issue.html_url,
-                                         title=issue.title, number=issue.number, score=0, notes='',
-                                         amount_of_comments=issue.get_comments().totalCount, relevance=relevance,
-                                         keywords=db_keywords(keywords), labels=get_labels(issue),
-                                         linked_issues=get_linked_issues(issue),
-                                         create_date=issue_dates.created_at, closed_date=issue_dates.closed_at)
-                    insert(conn, 'issues', issue_obj)
-                    if redundancy_check(conn, 'repositories', repo_id, repo.full_name, relevance):
-                        issue_print(conn, issue.id)
-                        continue
-                    else:
-                        repo_obj = RepoObj(id=repo.id, url=repo.url, html_url=repo.html_url,
-                                           about=repo.description,
-                                           creator=repo.full_name.split('/')[0], name=repo.full_name.split('/')[1],
-                                           size=repo.size, languages=get_languages(repo), contributors=cons.get_size(),
-                                           issues_amount=repo.get_issues().totalCount,
-                                           issues_keywords=db_keywords(keywords),
-                                           issues_labels=get_labels(issue),
-                                           code_frequency_additions=scf.get_adds(),
-                                           code_frequency_deletions=scf.get_dels(),
-                                           code_frequency_ratio=scf.ratio)
-                        insert(conn, 'repositories', repo_obj)
-                issue_print(conn, issue.id)
+        if issue.closed_at is None:
+            return IssueDates(created_at=issue.created_at.strftime(str(issue.created_at.date())))
+        else:
+            return IssueDates(created_at=issue.created_at.strftime(str(issue.created_at.date())),
+                              closed_at=issue.closed_at.strftime(str(issue.closed_at.date())))
     except Exception as e:
-        print('Exception inside page_iterator() on line {}:'.format(sys.exc_info()[-1].tb_lineno),
-              repr(e))
+        print('Exception inside get_issue_dates() on line {}:'.format(sys.exc_info()[-1].tb_lineno),
+              e.with_traceback(e.__traceback__))
 
 
 class IssuePrint:
@@ -631,20 +628,176 @@ def issue_print(conn, issue_id):
               e.with_traceback(e.__traceback__))
 
 
+def google_search(query, google_api_key, google_cse_id, start, **kwargs):
+    """
+    function that uses a search query to look for in the web using google as a search engine
+    :param query: read from an outside file that contains keywords to filter by
+    :param google_api_key: read from an outside file to use the custom search engine
+    :param google_cse_id: read from an outside file to use the search engine
+    :param start: offset to tell google what results to deliver since the max of results given at a time is 10
+    :param kwargs:
+    :return: returns a dict-object with the 10 results found with this query
+    """
+    try:
+        service = build(serviceName='customsearch', version='v1', developerKey=google_api_key)
+        result = service.cse().list(q=query, cx=google_cse_id, exactTerms='comments', start=start, **kwargs).execute()
+        return result
+    except Exception as e:
+        if e.args[0]['status'] == '429':
+            return None
+        else:
+            print('Exception inside googl_search() on line {}:'.format(sys.exc_info()[-1].tb_lineno),
+                  e.with_traceback(e.__traceback__))
+
+
+def query_maker(keywords):
+    """
+    function to build the search query with the desired keywords
+    :param keywords: string of keywords extracted from the config file
+    :return: string of the final query
+    """
+    query = 'inurl:issues '
+    for keyword in keywords.split('\t'):
+        if ' ' in keyword:
+            keyword = '"' + keyword + '"'
+        query += 'intext:' + keyword + ' '
+    return query
+
+
+def page_iterator(auth, keywords, google_api_key, google_cse_id, path_db):
+    try:
+        relevance = 0
+        query = query_maker(keywords)
+        conn = create_connection(path_db)
+        print('used search query: ' + query + '\n')
+        for offset in range(0, 100, 10):
+            res_page = google_search(query=query, google_api_key=google_api_key,
+                                     google_cse_id=google_cse_id, start=offset)
+            if res_page is None:
+                print('\nDaily rate-limit of 100 query searches reached.\n')
+                break
+            elif res_page['searchInformation']['totalResults'] == '0':
+                print('finished iterating through', relevance, 'results\n')
+                break
+            for res in res_page['items']:
+                relevance += 1
+                repo_id = int(res['pagemap']['metatags'][0]['octolytics-dimension-repository_id'])
+                issue_num = int(res['link'].split('issues/')[1])
+
+                # check ob repo und issue bereits in der datenbank vorhanden sind
+                repo = auth.get_repo(repo_id)
+                issue = repo.get_issue(issue_num)
+                if redundancy_check(conn, 'issues', issue.id, issue.title, relevance, keywords):
+                    issue_print(conn, issue.id)
+                    continue
+                else:
+                    if auth.get_rate_limit().core.remaining <= 0:
+                        reset_sleep(auth)
+                    issue_dates = get_issue_dates(issue)
+                    scf = stats_code_frequency(repo, auth)
+                    cons = contributors(repo, auth)
+                    issue_obj = IssueObj(repo_id=repo.id, id=issue.id, url=issue.url, html_url=issue.html_url,
+                                         title=issue.title, number=issue.number, score=0, notes='',
+                                         amount_of_comments=issue.get_comments().totalCount, relevance=relevance,
+                                         keywords=db_keywords(keywords), labels=get_labels(issue),
+                                         linked_issues=get_linked_issues(issue),
+                                         create_date=issue_dates.created_at, closed_date=issue_dates.closed_at)
+                    insert(conn, 'issues', issue_obj)
+                    print('Issue:'.rjust(11), issue.title, issue.id, 'has been inserted into the database')
+                    if redundancy_check(conn, 'repositories', repo_id, repo.full_name, relevance, keywords):
+                        issue_print(conn, issue.id)
+                        continue
+                    else:
+                        repo_obj = RepoObj(id=repo.id, url=repo.url, html_url=repo.html_url,
+                                           about=repo.description,
+                                           creator=repo.full_name.split('/')[0], name=repo.full_name.split('/')[1],
+                                           size=repo.size, languages=get_languages(repo), contributors=cons.get_size(),
+                                           issues_amount=repo.get_issues().totalCount,
+                                           issues_keywords=db_keywords(keywords),
+                                           issues_labels=get_labels(issue),
+                                           code_frequency_additions=scf.get_adds(),
+                                           code_frequency_deletions=scf.get_dels(),
+                                           code_frequency_ratio=scf.ratio)
+                        insert(conn, 'repositories', repo_obj)
+                        print('Repository:', repo.full_name, repo.id, 'has been inserted into the database')
+                issue_print(conn, issue.id)
+    except Exception as e:
+        print('Exception inside page_iterator() on line {}:'.format(sys.exc_info()[-1].tb_lineno),
+              repr(e))
+
+
+# -------------------------------------------------------------------------------------------------------------------- #
+# the following block of code deals with the folder structure and the downloading of the repositories
+
+
+def create_download_folder(path):
+    """
+    creates the folder structure the repositories will be written to
+    :param path: path for the folder to be created at
+    :return: path of the created folder
+    """
+    if path == 'current':
+        path = os.getcwd() + '/repositories'
+    if not os.path.exists(path):
+        os.makedirs(path)
+    return path
+
+
+def download_repo(init, repo_id):
+    """
+    function to download the repo as it is seen in github with the folder structure intact
+    :param init: init object for extracting the path of download from
+    :param auth: authentication object to perform necessary calls
+    :param repo: repository object to download
+    :return: False
+    """
+    auth = init.auth
+    folder = create_download_folder(init.config.path_of_download)
+    repo = auth.get_repo(repo_id)
+    repo_creator = repo.full_name.split('/')[0]
+    os.chdir(folder)
+    folder_name = os.getcwd() + '/' + repo_creator + '_' + repo.name + '_' + repo.id
+    if not os.path.exists(folder_name):
+        os.makedirs(folder_name)
+    os.chdir(folder_name)
+
+    contents = repo.get_contents("")
+    while contents:
+        file_content = contents.pop(0)
+        print(file_content.type)
+        if file_content.type == 'dir':
+            print(file_content)
+            os.makedirs(file_content.path)
+            contents.extend(repo.get_contents(file_content.path))
+        else:
+            print(file_content)
+            try:
+                file = open(file_content.path, 'wb')
+                file.write(file_content.decoded_content)
+            except Exception as e:
+                file = open(file_content.path, 'w')
+                file.write('could not write file because of unsupported decoding')
+                print('Exception inside download_repo on line {}:'.format(sys.exc_info()[-1].tb_lineno),
+                      e.with_traceback(e.__traceback__))
+
+
 # ---------------------------------------------------------------------------------------------------------------------#
 
 def input_handler(init):
-    # wait for keyboard input
     conn = create_connection(init.config.path_of_database)
-    func_input = input('\nplease choose one of the following functions\n'
-                       '\tsq<enter key>\tto use the query created by the config '
-                       'and give out each result for further inspection and entry into the database\n'
-                       '\tsn<tab><issue_id><tab><message><enter key>\tto set notes for a certain issue\n'
-                       '\tss<tab><issue_id><tab><score><enter key>\tto set the score for a certain issue\n'
-                       '\tgiws<tab><operator(<, >, =, ...)><tab><score><enter key>\t '
-                       'to get all issues stored in the database '
-                       'where the score fulfills the condition\n'
-                       '\tquit<enter key>\tto terminate this program\n\n')
+    print('-----------------------------------------------------------------------------------------------')
+    print('sq\t'.rjust(35), 'to use the query created by the config '
+                       'and give out each result for further inspection and entry into the database')
+    print('sn<tab><issue_id><tab><message>\t'.rjust(35), 'to set notes for a certain issue')
+    print('ss<tab><issue_id><tab><score>\t'.rjust(35), 'to set the score for a certain issue')
+    print('giws<tab><operator><tab><score>\t'.rjust(35), 'to get all issues stored in the database '
+                                                                      'where the score fulfills the condition')
+    print('dr<tab>repo_id\t'.rjust(35), "to download the repository's files into a folder set "
+                                                 'by the configuration file')
+    print('quit\t'.rjust(35), 'to terminate this program')
+    func_input = input('\nplease choose one of the stated functions by writing it down and '
+                       'press the enter key afterwards\n')
+    print('-----------------------------------------------------------------------------------------------')
     if func_input.split('\t')[0] == 'sq':
         page_iterator(auth=init.auth, keywords=init.config.keywords,
                       google_api_key=init.config.google_api_key, google_cse_id=init.config.google_cse_id,
@@ -662,6 +815,9 @@ def input_handler(init):
         operator = func_input.split('\t')[1]
         score = func_input.split('\t')[2]
         get_issues_where_score(conn, operator, score)
+    elif func_input.split('\t')[0] == 'dr':
+        repo_id = func_input.split('\t')[1]
+        download_repo(init, repo_id)
     elif func_input.split('\t')[0] == 'quit':
         quit()
     input_handler(init)
