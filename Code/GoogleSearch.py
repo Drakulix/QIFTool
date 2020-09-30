@@ -227,7 +227,7 @@ def insert(conn, table, values):
     with conn:
         try:
             if insert_statement is not None:
-                print(list(vars(values).values()))
+                # print(list(vars(values).values()))
                 cursor.execute(insert_statement, list(vars(values).values()))
             else:
                 print('table selection went wrong!')
@@ -517,11 +517,9 @@ def get_labels(issue):
     try:
         labels_str = ''
         labels = issue.get_labels()
-        print(labels)
-        if labels.totalCount >= 1:
-            for label in labels[:-1]:
-                labels_str += label.name + ', '
-            labels_str += labels[-1]
+        for label in labels:
+            labels_str += label.name + ', '
+        labels_str = labels_str[:-2]
         return labels_str
     except Exception as e:
         print('Exception inside get_labels() on line {}:'.format(sys.exc_info()[-1].tb_lineno),
@@ -532,9 +530,9 @@ def get_languages(repo):
     try:
         languages_str = ''
         languages = repo.get_languages()
-        for lang in languages[:-1]:
+        for lang in languages:
             languages_str += lang + ', '
-        languages_str += languages[-1]
+        languages_str = languages_str[:-2]
         return languages_str
     except Exception as e:
         print('Exception inside get_languages() on line {}:'.format(sys.exc_info()[-1].tb_lineno),
@@ -669,7 +667,7 @@ def page_iterator(auth, keywords, google_api_key, google_cse_id, path_db):
         relevance = 0
         query = query_maker(keywords)
         conn = create_connection(path_db)
-        print('used search query: ' + query + '\n')
+        print('Used search query: ' + query + '\n')
         for offset in range(0, 100, 10):
             res_page = google_search(query=query, google_api_key=google_api_key,
                                      google_cse_id=google_cse_id, start=offset)
@@ -677,7 +675,7 @@ def page_iterator(auth, keywords, google_api_key, google_cse_id, path_db):
                 print('\nDaily rate-limit of 100 query searches reached.\n')
                 break
             elif res_page['searchInformation']['totalResults'] == '0':
-                print('finished iterating through', relevance, 'results\n')
+                print('Finished iterating through', relevance, 'results\n')
                 break
             for res in res_page['items']:
                 relevance += 1
@@ -700,7 +698,7 @@ def page_iterator(auth, keywords, google_api_key, google_cse_id, path_db):
                                          title=issue.title, number=issue.number, score=0, notes='',
                                          amount_of_comments=issue.get_comments().totalCount, relevance=relevance,
                                          keywords=db_keywords(keywords), labels=get_labels(issue),
-                                         linked_issues=get_linked_issues(issue),
+                                         linked_issues='',
                                          create_date=issue_dates.created_at, closed_date=issue_dates.closed_at)
                     insert(conn, 'issues', issue_obj)
                     print('Issue:'.rjust(11), issue.title, issue.id, 'has been inserted into the database')
@@ -805,7 +803,6 @@ def input_handler(init):
     elif func_input.split('\t')[0] == 'sn':
         issue_id = func_input.split('\t')[1]
         message = func_input.split('\t')[2]
-        print(message)
         set_notes_to_issue(issue_id, message, conn)
     elif func_input.split('\t')[0] == 'ss':
         issue_id = func_input.split('\t')[1]
