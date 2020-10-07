@@ -578,6 +578,39 @@ def get_issue_dates(issue):
               e.with_traceback(e.__traceback__))
 
 
+def metric_check(conn, config_issue_comments, config_repo_contributors, issue_id, repo_id):
+    with conn:
+        if config_issue_comments == '' and config_repo_contributors == '':
+            return True
+        elif config_issue_comments != '' and config_repo_contributors != '':
+            cursor = conn.cursor()
+            check_statement = """SELECT amount_of_comments FROM issues WHERE issue_id = ?;"""
+            cursor.execute(check_statement, [issue_id])
+            db_issue_comments = cursor.fetchall()[0]
+            check_statement = """SELECT contributors FROM repositories WHERE repo_id = ?;"""
+            cursor.execute(check_statement, [repo_id])
+            db_repo_contributors = cursor.fetchall()[0]
+            if db_issue_comments >= config_issue_comments and db_repo_contributors >= config_repo_contributors:
+                return True
+        elif config_issue_comments != '' and config_repo_contributors == '':
+            cursor = conn.cursor()
+            check_statement = """SELECT amount_of_comments FROM issues WHERE issue_id = ?;"""
+            cursor.execute(check_statement, [issue_id])
+            db_issue_comments = cursor.fetchall()[0]
+            cursor.close()
+            if db_issue_comments >= config_issue_comments:
+                return True
+        elif config_repo_contributors != '' and config_issue_comments == '':
+            cursor = conn.cursor()
+            check_statement = """SELECT contributors FROM repositories WHERE repo_id = ?;"""
+            cursor.execute(check_statement, [repo_id])
+            db_repo_contributors = cursor.fetchall()[0]
+            cursor.close()
+            if db_repo_contributors >= config_repo_contributors:
+                return True
+        return False
+
+
 class IssuePrint:
     def __init__(self, repo_name, repo_about, issue_id, issue_htmlurl,
                  issue_title, score, relevance, linked_issues, notes):
@@ -662,7 +695,7 @@ def query_maker(keywords):
     return query
 
 
-def page_iterator(auth, keywords, google_api_key, google_cse_id, path_db):
+def page_iterator(auth, keywords, issue_comments, repo_contributors, google_api_key, google_cse_id, path_db):
     try:
         relevance = 0
         query = query_maker(keywords)
@@ -686,7 +719,8 @@ def page_iterator(auth, keywords, google_api_key, google_cse_id, path_db):
                 repo = auth.get_repo(repo_id)
                 issue = repo.get_issue(issue_num)
                 if redundancy_check(conn, 'issues', issue.id, issue.title, relevance, keywords):
-                    issue_print(conn, issue.id)
+                    if metric_check(conn, issue_comments, repo_contributors, issue.id, repo_id):
+                        issue_print(conn, issue.id)
                     continue
                 else:
                     if auth.get_rate_limit().core.remaining <= 0:
@@ -703,7 +737,8 @@ def page_iterator(auth, keywords, google_api_key, google_cse_id, path_db):
                     insert(conn, 'issues', issue_obj)
                     print('Issue:'.rjust(11), issue.title, issue.id, 'has been inserted into the database')
                     if redundancy_check(conn, 'repositories', repo_id, repo.full_name, relevance, keywords):
-                        issue_print(conn, issue.id)
+                        if metric_check(conn, issue_comments, repo_contributors, issue.id, repo_id):
+                            issue_print(conn, issue.id)
                         continue
                     else:
                         repo_obj = RepoObj(id=repo.id, url=repo.url, html_url=repo.html_url,
@@ -718,7 +753,8 @@ def page_iterator(auth, keywords, google_api_key, google_cse_id, path_db):
                                            code_frequency_ratio=scf.ratio)
                         insert(conn, 'repositories', repo_obj)
                         print('Repository:', repo.full_name, repo.id, 'has been inserted into the database')
-                issue_print(conn, issue.id)
+                if metric_check(conn, issue_comments, repo_contributors, issue.id, repo_id):
+                    issue_print(conn, issue.id)
     except Exception as e:
         print('Exception inside page_iterator() on line {}:'.format(sys.exc_info()[-1].tb_lineno),
               repr(e))
@@ -797,7 +833,8 @@ def input_handler(init):
                        'press the enter key afterwards\n')
     print('-----------------------------------------------------------------------------------------------')
     if func_input.split('\t')[0] == 'sq':
-        page_iterator(auth=init.auth, keywords=init.config.keywords,
+        page_iterator(auth=init.auth, keywords=init.config.keywords, issue_comments=init.config.issue_comments,
+                      repo_contributors=init.config.repo_contributors,
                       google_api_key=init.config.google_api_key, google_cse_id=init.config.google_cse_id,
                       path_db=init.config.path_of_database)
     elif func_input.split('\t')[0] == 'sn':
