@@ -8,16 +8,13 @@ import sqlite3
 import sys
 import os
 
-api_key = "api_key"
-cse_id = "cse_di"
-
 
 # ---------------------------------------------------------------------------------------------------------------------#
 # class and functions for handling the configuration file
 
 class Config:
     def __init__(self, path_of_database, path_of_download, github_api_key, google_api_key, google_cse_id,
-                 keywords, issue_comments, repo_contributors, repo_additions, repo_deletions, repo_ratio):
+                 keywords, issue_comments, repo_contributors):
         self.path_of_database = path_of_database
         self.path_of_download = path_of_download
         self.github_api_key = github_api_key
@@ -26,9 +23,6 @@ class Config:
         self.keywords = keywords
         self.issue_comments = issue_comments
         self.repo_contributors = repo_contributors
-        self.repo_additions = repo_additions
-        self.repo_deletions = repo_deletions
-        self.repo_ratio = repo_ratio
 
 
 def create_config():
@@ -47,10 +41,7 @@ def create_config():
                              }
     config['metrics'] = {'keywords': '',
                          'issue_comments': '',
-                         'repo_contributors': '',
-                         'repo_additions': '',
-                         'repo_deletions': '',
-                         'repo_ratio': ''
+                         'repo_contributors': ''
                          }
     if not (os.path.isfile('config.ini')):
         with open('config.ini', 'w') as config_file:
@@ -74,10 +65,7 @@ def read_config():
                     google_cse_id=config['credentials']['google_cse_id'],
                     keywords=config['metrics']['keywords'],
                     issue_comments=config['metrics']['issue_comments'],
-                    repo_contributors=config['metrics']['repo_contributors'],
-                    repo_additions=config['metrics']['repo_additions'],
-                    repo_deletions=config['metrics']['repo_deletions'],
-                    repo_ratio=config['metrics']['repo_ratio'])
+                    repo_contributors=config['metrics']['repo_contributors'])
     return values
 
 # ---------------------------------------------------------------------------------------------------------------------#
@@ -284,7 +272,7 @@ class RelevanceValues:
 
 def relevance_check(conn, issue_id, relevance):
     """
-    function to check an issues relevance whenever it occours in the search again if its relevance is lower than the one
+    function to check an issues relevance whenever it occurs in the search again if its relevance is lower than the one
     stored in the database
     :return:
     """
@@ -540,6 +528,12 @@ def get_languages(repo):
 
 
 def linked_issue(repo, issue_number):
+    """
+    function to get teh linked issue
+    :param repo: repository of the issues involved
+    :param issue_number: number of the issue to be gotten
+    :return: linked issue-object
+    """
     try:
         issue = repo.get_issue(issue_number)
         return issue
@@ -548,6 +542,13 @@ def linked_issue(repo, issue_number):
 
 
 def get_linked_issues(repo, issue):
+    """
+    TODO this is a funtion that has a concept of extracting linked issues insdie issues but is not consistent due to
+    \linked issues being possible to embedded inside text
+    :param repo: repository object of all linked issues
+    :param issue: current issue where linked issues shall be found
+    :return:
+    """
     linked_issues_list = []
     for comment in issue.get_comments():
         split_list = comment.split('#')
@@ -579,36 +580,50 @@ def get_issue_dates(issue):
 
 
 def metric_check(conn, config_issue_comments, config_repo_contributors, issue_id, repo_id):
-    with conn:
-        if config_issue_comments == '' and config_repo_contributors == '':
-            return True
-        elif config_issue_comments != '' and config_repo_contributors != '':
-            cursor = conn.cursor()
-            check_statement = """SELECT amount_of_comments FROM issues WHERE issue_id = ?;"""
-            cursor.execute(check_statement, [issue_id])
-            db_issue_comments = cursor.fetchall()[0]
-            check_statement = """SELECT contributors FROM repositories WHERE repo_id = ?;"""
-            cursor.execute(check_statement, [repo_id])
-            db_repo_contributors = cursor.fetchall()[0]
-            if db_issue_comments >= config_issue_comments and db_repo_contributors >= config_repo_contributors:
+    """
+    function to prefilter results that are shown to the user. uses the config metrics to determine.
+    :param conn: conenction-object to the database
+    :param config_issue_comments: config metric attribute
+    :param config_repo_contributors: config metric attribute
+    :param issue_id: id of the issue
+    :param repo_id: id of the repo
+    :return: a bool to either print the result or not depending
+    whether the result is greater than or equal to the metric set in the config file
+    """
+    try:
+        with conn:
+            if config_issue_comments == '' and config_repo_contributors == '':
                 return True
-        elif config_issue_comments != '' and config_repo_contributors == '':
-            cursor = conn.cursor()
-            check_statement = """SELECT amount_of_comments FROM issues WHERE issue_id = ?;"""
-            cursor.execute(check_statement, [issue_id])
-            db_issue_comments = cursor.fetchall()[0]
-            cursor.close()
-            if db_issue_comments >= config_issue_comments:
-                return True
-        elif config_repo_contributors != '' and config_issue_comments == '':
-            cursor = conn.cursor()
-            check_statement = """SELECT contributors FROM repositories WHERE repo_id = ?;"""
-            cursor.execute(check_statement, [repo_id])
-            db_repo_contributors = cursor.fetchall()[0]
-            cursor.close()
-            if db_repo_contributors >= config_repo_contributors:
-                return True
-        return False
+            elif config_issue_comments != '' and config_repo_contributors != '':
+                cursor = conn.cursor()
+                check_statement = """SELECT amount_of_comments FROM issues WHERE issue_id = ?;"""
+                cursor.execute(check_statement, [issue_id])
+                db_issue_comments = cursor.fetchall()[0][0]
+                check_statement = """SELECT contributors FROM repositories WHERE repo_id = ?;"""
+                cursor.execute(check_statement, [repo_id])
+                db_repo_contributors = cursor.fetchall()[0][0]
+                if db_issue_comments >= config_issue_comments and db_repo_contributors >= config_repo_contributors:
+                    return True
+            elif config_issue_comments != '' and config_repo_contributors == '':
+                cursor = conn.cursor()
+                check_statement = """SELECT amount_of_comments FROM issues WHERE issue_id = ?;"""
+                cursor.execute(check_statement, [issue_id])
+                db_issue_comments = cursor.fetchall()[0][0]
+                cursor.close()
+                if db_issue_comments >= config_issue_comments:
+                    return True
+            elif config_repo_contributors != '' and config_issue_comments == '':
+                cursor = conn.cursor()
+                check_statement = """SELECT contributors FROM repositories WHERE repo_id = ?;"""
+                cursor.execute(check_statement, [repo_id])
+                db_repo_contributors = cursor.fetchall()[0][0]
+                cursor.close()
+                if db_repo_contributors >= config_repo_contributors:
+                    return True
+            return False
+    except Exception as e:
+        print('Exception inside metric_check() on line {}:'.format(sys.exc_info()[-1].tb_lineno),
+              e.with_traceback(e.__traceback__))
 
 
 class IssuePrint:
@@ -700,7 +715,9 @@ def page_iterator(auth, keywords, issue_comments, repo_contributors, google_api_
         relevance = 0
         query = query_maker(keywords)
         conn = create_connection(path_db)
-        print('Used search query: ' + query + '\n')
+        print('Used Keywords: '.rjust(37) + keywords)
+        print('Used minimum amount of comments:'.rjust(37), issue_comments)
+        print('Used minimum amount of contributors:'.rjust(37), repo_contributors, '\n')
         for offset in range(0, 100, 10):
             res_page = google_search(query=query, google_api_key=google_api_key,
                                      google_cse_id=google_cse_id, start=offset)
@@ -826,6 +843,8 @@ def input_handler(init):
     print('ss<tab><issue_id><tab><score>\t'.rjust(35), 'to set the score for a certain issue')
     print('giws<tab><operator><tab><score>\t'.rjust(35), 'to get all issues stored in the database '
                                                                       'where the score fulfills the condition')
+    print('giwm\t'.rjust(35), 'to get all issues stored in the database where the metainformation fulfill '
+                              'the metrics set inside the configfile')
     print('dr<tab>repo_id\t'.rjust(35), "to download the repository's files into a folder set "
                                                  'by the configuration file')
     print('quit\t'.rjust(35), 'to terminate this program')
@@ -833,8 +852,8 @@ def input_handler(init):
                        'press the enter key afterwards\n')
     print('-----------------------------------------------------------------------------------------------')
     if func_input.split('\t')[0] == 'sq':
-        page_iterator(auth=init.auth, keywords=init.config.keywords, issue_comments=init.config.issue_comments,
-                      repo_contributors=init.config.repo_contributors,
+        page_iterator(auth=init.auth, keywords=init.config.keywords, issue_comments=int(init.config.issue_comments),
+                      repo_contributors=int(init.config.repo_contributors),
                       google_api_key=init.config.google_api_key, google_cse_id=init.config.google_cse_id,
                       path_db=init.config.path_of_database)
     elif func_input.split('\t')[0] == 'sn':
@@ -849,6 +868,10 @@ def input_handler(init):
         operator = func_input.split('\t')[1]
         score = func_input.split('\t')[2]
         get_issues_where_score(conn, operator, score)
+    elif func_input.split('\t')[0] == 'giwm':
+        get_issues_where_metrics(conn=conn, keywords=init.config.keywords,
+                                 issue_comments=int(init.config.issue_comments),
+                                 repo_contributors=int(init.config.repo_contributors))
     elif func_input.split('\t')[0] == 'dr':
         repo_id = func_input.split('\t')[1]
         download_repo(init, repo_id)
@@ -908,9 +931,33 @@ def get_issues_where_score(conn, operator, score):
                 issue_print(conn, entry)
             cursor.close()
     except Exception as e:
-        print('Exception inside issue_print() on line {}:'.format(sys.exc_info()[-1].tb_lineno),
+        print('Exception inside get_issues_where_score() on line {}:'.format(sys.exc_info()[-1].tb_lineno),
               e.with_traceback(e.__traceback__))
 
+
+def get_issues_where_metrics(conn, keywords, issue_comments, repo_contributors):
+    try:
+        print('Used Keywords:'.rjust(37), keywords)
+        print('Used minimum amount of comments:'.rjust(37), issue_comments)
+        print('Used minimum amount of contributors:'.rjust(37), repo_contributors, '\n')
+        with conn:
+            cursor = conn.cursor()
+            select_statement = """SELECT i.issue_id, i.keywords FROM issues AS i INNER JOIN repositories AS r 
+                                    ON i.repo_id = r.repo_id WHERE amount_of_comments >= ? 
+                                    AND contributors >= ? ORDER BY score DESC;"""
+            cursor.execute(select_statement, [issue_comments, repo_contributors])
+            db_entry = cursor.fetchall()
+            for entry in db_entry:
+                print_issue = True
+                for keyword in keywords.split('\t'):
+                    if keyword not in entry[1]:
+                        print_issue = False
+                if print_issue:
+                    issue_print(conn, entry[0])
+            cursor.close()
+    except Exception as e:
+        print('Exception inside get_issues_where_metrics() on line {}:'.format(sys.exc_info()[-1].tb_lineno),
+              e.with_traceback(e.__traceback__))
 
 # ---------------------------------------------------------------------------------------------------------------------#
 
