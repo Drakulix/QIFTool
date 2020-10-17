@@ -627,8 +627,9 @@ def metric_check(conn, config_issue_comments, config_repo_contributors, issue_id
 
 
 class IssuePrint:
-    def __init__(self, repo_name, repo_about, issue_id, issue_htmlurl,
+    def __init__(self, repo_id, repo_name, repo_about, issue_id, issue_htmlurl,
                  issue_title, score, relevance, linked_issues, notes):
+        self.repo_id = repo_id
         self.repo_name = repo_name
         self.repo_about = repo_about
         self.issue_id = issue_id
@@ -644,7 +645,7 @@ def issue_print(conn, issue_id):
     try:
         with conn:
             cursor = conn.cursor()
-            check_statement = """SELECT r.repo_name, r.repo_about, i.issue_id, i.issue_htmlurl, 
+            check_statement = """SELECT r.repo_id, r.repo_name, r.repo_about, i.issue_id, i.issue_htmlurl, 
                                 i.issue_title, i.score, i.relevance, i.linked_issues, i.notes
                                 FROM issues AS i INNER JOIN repositories AS r ON i.repo_id = r.repo_id
                                 WHERE issue_id = ?;"""
@@ -654,11 +655,12 @@ def issue_print(conn, issue_id):
             if not db_entry:
                 print('something went wrong')
             else:
-                issue_print = IssuePrint(repo_name=db_entry[0], repo_about=db_entry[1],
-                                         issue_id=db_entry[2], issue_htmlurl=db_entry[3], issue_title=db_entry[4],
-                                         score=db_entry[5], relevance=db_entry[6], linked_issues=db_entry[7],
-                                         notes=db_entry[8])
+                issue_print = IssuePrint(repo_id=db_entry[0], repo_name=db_entry[1], repo_about=db_entry[2],
+                                         issue_id=db_entry[3], issue_htmlurl=db_entry[4], issue_title=db_entry[5],
+                                         score=db_entry[6], relevance=db_entry[7], linked_issues=db_entry[8],
+                                         notes=db_entry[9])
                 print('-----------------------------------------------------------------------------------------------')
+                print('repo_id:'.rjust(17), issue_print.repo_id)
                 print('repo_name:'.rjust(17), issue_print.repo_name)
                 print('repo_about:'.rjust(17), issue_print.repo_about)
                 print('html_url:'.rjust(17), issue_print.issue_htmlurl)
@@ -797,39 +799,42 @@ def create_download_folder(path):
 def download_repo(init, repo_id):
     """
     function to download the repo as it is seen in github with the folder structure intact
+    :param repo_id: the id of the repository to download
     :param init: init object for extracting the path of download from
-    :param auth: authentication object to perform necessary calls
-    :param repo: repository object to download
     :return: False
     """
-    auth = init.auth
-    folder = create_download_folder(init.config.path_of_download)
-    repo = auth.get_repo(repo_id)
-    repo_creator = repo.full_name.split('/')[0]
-    os.chdir(folder)
-    folder_name = os.getcwd() + '/' + repo_creator + '_' + repo.name + '_' + repo.id
-    if not os.path.exists(folder_name):
-        os.makedirs(folder_name)
-    os.chdir(folder_name)
+    try:
+        auth = init.auth
+        folder = create_download_folder(init.config.path_of_download)
+        repo = auth.get_repo(int(repo_id))
+        repo_creator = repo.full_name.split('/')[0]
+        os.chdir(folder)
+        folder_name = os.getcwd() + '/' + repo_creator + '_' + repo.name + '_' + repo_id
+        if not os.path.exists(folder_name):
+            os.makedirs(folder_name)
+        os.chdir(folder_name)
 
-    contents = repo.get_contents("")
-    while contents:
-        file_content = contents.pop(0)
-        print(file_content.type)
-        if file_content.type == 'dir':
-            print(file_content)
-            os.makedirs(file_content.path)
-            contents.extend(repo.get_contents(file_content.path))
-        else:
-            print(file_content)
-            try:
-                file = open(file_content.path, 'wb')
-                file.write(file_content.decoded_content)
-            except Exception as e:
-                file = open(file_content.path, 'w')
-                file.write('could not write file because of unsupported decoding')
-                print('Exception inside download_repo on line {}:'.format(sys.exc_info()[-1].tb_lineno),
-                      e.with_traceback(e.__traceback__))
+        contents = repo.get_contents("")
+        print('Downloading ' + folder_name + '...')
+        while contents:
+            file_content = contents.pop(0)
+            if file_content.type == 'dir':
+                os.makedirs(file_content.path)
+                contents.extend(repo.get_contents(file_content.path))
+            else:
+                try:
+                    file = open(file_content.path, 'wb')
+                    file.write(file_content.decoded_content)
+                except Exception as e:
+                    file = open(file_content.path, 'w')
+                    file.write('could not write file because of unsupported decoding')
+                    print('Exception inside download_repo on line {}:'.format(sys.exc_info()[-1].tb_lineno),
+                          e.with_traceback(e.__traceback__))
+                    print("Next file will be downloaded")
+        print('Finished Downloading ' + folder_name)
+    except Exception as e:
+        print('Exception inside page_iterator() on line {}:'.format(sys.exc_info()[-1].tb_lineno),
+              repr(e))
 
 
 # ---------------------------------------------------------------------------------------------------------------------#
@@ -845,6 +850,8 @@ def input_handler(init):
                                                                       'where the score fulfills the condition')
     print('giwm\t'.rjust(35), 'to get all issues stored in the database where the metainformation fulfill '
                               'the metrics set inside the configfile')
+    print('giwn<tab>note\t'.rjust(35), 'to get all issues stored in the database where the set notes inside the issues '
+                                       'contain the note')
     print('dr<tab>repo_id\t'.rjust(35), "to download the repository's files into a folder set "
                                                  'by the configuration file')
     print('quit\t'.rjust(35), 'to terminate this program')
@@ -868,6 +875,9 @@ def input_handler(init):
         operator = func_input.split('\t')[1]
         score = func_input.split('\t')[2]
         get_issues_where_score(conn, operator, score)
+    elif func_input.split('\t')[0] == 'giwn':
+        notes = func_input.split('\t')[1]
+        get_issues_where_notes(conn, notes)
     elif func_input.split('\t')[0] == 'giwm':
         get_issues_where_metrics(conn=conn, keywords=init.config.keywords,
                                  issue_comments=int(init.config.issue_comments),
@@ -935,6 +945,21 @@ def get_issues_where_score(conn, operator, score):
               e.with_traceback(e.__traceback__))
 
 
+def get_issues_where_notes(conn, notes):
+    try:
+        with conn:
+            cursor = conn.cursor()
+            select_statement = """SELECT issue_id FROM issues WHERE notes LIKE '""" + notes + """';"""
+            cursor.execute(select_statement,)
+            db_entry = cursor.fetchall()[0]
+            for entry in db_entry:
+                issue_print(conn, entry)
+            cursor.close()
+    except Exception as e:
+        print('Exception inside get_issues_where_notes() on line {}:'.format(sys.exc_info()[-1].tb_lineno),
+              e.with_traceback(e.__traceback__))
+
+
 def get_issues_where_metrics(conn, keywords, issue_comments, repo_contributors):
     try:
         print('Used Keywords:'.rjust(37), keywords)
@@ -958,6 +983,7 @@ def get_issues_where_metrics(conn, keywords, issue_comments, repo_contributors):
     except Exception as e:
         print('Exception inside get_issues_where_metrics() on line {}:'.format(sys.exc_info()[-1].tb_lineno),
               e.with_traceback(e.__traceback__))
+
 
 # ---------------------------------------------------------------------------------------------------------------------#
 
