@@ -41,7 +41,8 @@ This file is created by running the program for the very first time. It is used 
 the user a space to use their own parameters used by the tool. The file contains three
 sections for the user to fill out.
 
-`[DEFAULT]
+```python
+[DEFAULT]
   path_of_database = current
   path_of_download = current
 [credentials]
@@ -51,4 +52,5 @@ sections for the user to fill out.
 [metrics]
   keywords = technical debt refactor rewrite
   issue_comments = 5
-  repo_contributors = 50`
+  repo_contributors = 50
+```
