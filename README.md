@@ -57,16 +57,16 @@ sections for the user to fill out.
 1. `[DEFAULT]` this section contains the path for the database and downloaded repositories to be stored in. The user is able to create their own path with the location of the ’qiftool.py”s as a pivot. These can be changed by providiung a valid path on your machine.
 
 1. `[credentials`  this section contains the corresponding credentials necessary to run the used APIs
-    1. `[github_api_key]`
+  1. `[github_api_key]`
       1. register on github
       1. [use this link](https://github.com/settings/tokens) and click on ’generate new token’ to create a new key
       1. paste the key as a parameter
-    1. `[google_api_key]`
+  1. `[google_api_key]`
       1. register on google
       1. [use this link](https://developers.google.com/custom-search/v1/introduction) and click on ’Get a Key’ to create a new key
       1. either choose a project or create a new one
       1. follow the instructions and paste the key as a parameter
-    1. `[google_cse_id]`
+  1. `[google_cse_id]`
       1. login to the google account created in the prior step
       1. [use this link](https://cse.google.com/cse/all) and click on the project you used to create the google key with
       1. look for the ’Search engine ID’ and paste the ID as a parameter
