@@ -8,7 +8,7 @@ The documentation can also be found here: [Documentation](QIFTool___Documentatio
 ## Table of contents
 
 - [Workflow](#workflow)
-- [How to run the program](#how_to_run_the_program)
+- [How to run the program](#how to run the program)
 - [Configuration file](#config)
 - [Interactive mode](#interactive_mode)
   - [Functions](#im_functions)
