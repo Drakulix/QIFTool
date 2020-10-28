@@ -88,3 +88,6 @@ Function | Description
 ---------|------------
 sq | (search query) - start the google search. The metrics set in the configuration file will be used to determine what results will be found and shown.
 sn<tab><issue_id><tab><message> | (set notes) - sets a note for a certain issue inside the database <br/> <br/> **issue_id** - a string of numbers. Found within the issue_id field in either the ouput or database of the issue. <br/> **message** - a string of characters that will be inserted into the notes field inside the database.
+giws<tab><operator><tab><score> | (get issues where score) - displays all issues stored in the database where the score fulfills the condition set by the user. <br/> <br/> **operator** - all comparison operators allowed by the SQL. <, >, =, <=, >= <br/> **score** - a number chosen by the user to
+represent its relevance and compare the
+issues inside the database to.
