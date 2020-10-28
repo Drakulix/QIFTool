@@ -156,5 +156,15 @@ Depending on the type of expansion the tool needs less steps to accomplish it
 1. Inside `insert(conn, table, values)`: Add the new metric inside the respective insert statement as well as the required `?`.
 1. Depending on what kind of metric and how accessible it is, it is necessary to create a function and preferably a class for the metric to be extracted and stored in. In case it needs to be created and takes API requests, do not forget to add the `reset_sleep(auth)` condition. See function `stats_code_frequency(repo, auth)` for an example.
 1. Inside either `RepoObj` or `IssueObj`: add the new metric to the `__init__` function.
-1. Inside `metric_check(conn, config_issue_comments, config_repo_contributors, issue_id, repo_id)`: Add the new metric as a new condition. The conditions have a 2<sup>n<sup/> complexity for with n being the amount of metrics. This semantic should be rewritten in order to allow the addition of more metrics.
+1. Inside `metric_check(conn, config_issue_comments, config_repo_contributors, issue_id, repo_id)`: Add the new metric as a new condition. The conditions have a 2<sup>n</sup> complexity for with n being the amount of metrics. This semantic should be rewritten in order to allow the addition of more metrics.
 1. If desired to also print out the new metric, the class `IssuePrint` and function `issue_print` need to be modified by adding the new metric.
+1. Inside `page_iterator(auth, keywords, issue_comments, repo_contributors, google_api_key, google_cse_id, path_db)`: the new metric needs to be called and then be stored inside the repo or issue object.
+1. Inside `input_handler(init)`: To access or make proper use of the new metric, add a new function that is callable via the interactive mode.
+
+### SQLite commands <a name="ex_sqlite"/>
+
+These commands will be callable via the interactive mode and access the database
+and its entries directly
+
+1. Inside `input_handler(init)`: Add a condition to to access the new function. Note that the function will be determined via the use of tabulators as seperators.
+1. Create a new function similar to `get_issues_where_metrics(conn, keywords, issue_comments, repo_contributors)` and modify the SQL statement to perform the desired action
