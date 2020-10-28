@@ -140,3 +140,21 @@ Attribute | Datatype | Description
 `linked_issues` | `text` | list of all issues that are linked to within this issue. *This attribute has yet to be implemented*
 `create_date` | `text` | date of the creation of this issue. Although the datatype is a 'text', SQLlite still recognizes the string as a date due its formatting
 `closed_at` | `text` | date of when the issue was closed. Although the datatype is a 'text', SQLlite still recognizes the string as a date due its formatting. If the issue has not been closed yet this field is set to 'NA'
+
+## Expanding the tool <a name="expanding"/>
+
+This tool can offer various fields of expansion. Most likely it will be an addition of
+other metrics. This section will explain how to proceed in order to expand the tool.
+Depending on the type of expansion the tool needs less steps to accomplish it
+
+### Metrics <a name="ex_metrics"/>
+
+1. Inside `create_config()`: Add the desired metric as an attribute inside the `[metrics]` section and give it a default value.
+1. Inside the `Config` class: Add the new metric to the `__init__` function.
+1. Inside `read_config()`: let the new metric be read out and stored inside the created instance of the `Config` class.
+1. Inside `create_database(path)`: Add the new metric to the respective table and add the desired constraints as well as edit the `UNIQUE` modifier.
+1. Inside `insert(conn, table, values)`: Add the new metric inside the respective insert statement as well as the required `?`.
+1. Depending on what kind of metric and how accessible it is, it is necessary to create a function and preferably a class for the metric to be extracted and stored in. In case it needs to be created and takes API requests, do not forget to add the `reset_sleep(auth)` condition. See function `stats_code_frequency(repo, auth)` for an example.
+1. Inside either `RepoObj` or `IssueObj`: add the new metric to the `__init__` function.
+1. Inside `metric_check(conn, config_issue_comments, config_repo_contributors, issue_id, repo_id)`: Add the new metric as a new condition. The conditions have a 2<sup>n<sup/> complexity for with n being the amount of metrics. This semantic should be rewritten in order to allow the addition of more metrics.
+1. If desired to also print out the new metric, the class `IssuePrint` and function `issue_print` need to be modified by adding the new metric.
