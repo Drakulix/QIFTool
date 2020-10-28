@@ -58,18 +58,18 @@ sections for the user to fill out.
 
 1. `[credentials]`  this section contains the corresponding credentials necessary to run the used APIs
     1. `[github_api_key]`
-      1. register on github
-      1. [use this link](https://github.com/settings/tokens) and click on ’generate new token’ to create a new key
-      1. paste the key as a parameter
+        1. register on github
+        1. [use this link](https://github.com/settings/tokens) and click on ’generate new token’ to create a new key
+        1. paste the key as a parameter
     1. `[google_api_key]`
-      1. register on google
-      1. [use this link](https://developers.google.com/custom-search/v1/introduction) and click on ’Get a Key’ to create a new key
-      1. either choose a project or create a new one
-      1. follow the instructions and paste the key as a parameter
+        1. register on google
+        1. [use this link](https://developers.google.com/custom-search/v1/introduction) and click on ’Get a Key’ to create a new key
+        1. either choose a project or create a new one
+        1. follow the instructions and paste the key as a parameter
     1. `[google_cse_id]`
-      1. login to the google account created in the prior step
-      1. [use this link](https://cse.google.com/cse/all) and click on the project you used to create the google key with
-      1. look for the ’Search engine ID’ and paste the ID as a parameter
+        1. login to the google account created in the prior step
+        1. [use this link](https://cse.google.com/cse/all) and click on the project you used to create the google key with
+        1. look for the ’Search engine ID’ and paste the ID as a parameter
 1. `[metrics]` These contain the metrics used for the google search. For further details for understanding each metric please refer to the tables in [SQLite Database](#sqlite).
     1. `[keywords]` - string of characters with each element separated by a tabulator. Note that the keywords will be used to find patterns that exactly match. So ’refactor’ will find ’refactoring’ but not vice versa. In addition the keywords are connected with a logical and.
     1. `[issue_comments]` - an integer over 0. It will show issues that have at least the amount of comments set in this metric. So 5 will yield issues with 5 or more comments.
