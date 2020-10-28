@@ -86,10 +86,10 @@ Once you successfully configered the configuration file in 3 an interactive mode
 
 Function | Description
 ---------|------------
-sq | (search query) - start the google search. The metrics set in the configuration file will be used to determine what results will be found and shown.
-sn<tab><issue_id><tab><message> | (set notes) - sets a note for a certain issue inside the database <br/> <br/> **issue_id** - a string of numbers. Found within the issue_id field in either the ouput or database of the issue. <br/> **message** - a string of characters that will be inserted into the notes field inside the database.
-giws<tab><operator><tab><score> | (get issues where score) - displays all issues stored in the database where the score fulfills the condition set by the user. <br/> <br/> **operator** - all comparison operators allowed by the SQL. <, >, =, <=, >= <br/> **score** - a number chosen by the user to represent its relevance and compare the issues inside the database to.
-giwm | (get issues where metrics) - displays all issues stored in the database where the pieces of metainformation fulfill the metrics set inside the configfile. This function yields the same functionality as the ’sn’-function but with the database being the source.
-giwn<tab>note | (get issues where notes) - displays all issues stored in the database where their notes contain the note set by the user with this very function <br/> <br/> **note** - a string of characters. This can be used in conjunction with SQL-syntax like providing a " or % around the note.
-dr<tab>repo_id | (download repository) - downloads the repository’s files into a separate folder. This folder’s location is set by the configuration file. The strucutre of the downloaded files also is identical to that of its respository.
-quit | terminates this program.
+`sq` | (search query) - start the google search. The metrics set in the configuration file will be used to determine what results will be found and shown.
+`sn<tab><issue_id><tab><message>` | (set notes) - sets a note for a certain issue inside the database <br/> <br/> **issue_id** - a string of numbers. Found within the issue_id field in either the ouput or database of the issue. <br/> **message** - a string of characters that will be inserted into the notes field inside the database.
+`giws<tab><operator><tab><score>` | (get issues where score) - displays all issues stored in the database where the score fulfills the condition set by the user. <br/> <br/> **operator** - all comparison operators allowed by the SQL. <, >, =, <=, >= <br/> **score** - a number chosen by the user to represent its relevance and compare the issues inside the database to.
+`giwm` | (get issues where metrics) - displays all issues stored in the database where the pieces of metainformation fulfill the metrics set inside the configfile. This function yields the same functionality as the ’sn’-function but with the database being the source.
+`giwn<tab>note` | (get issues where notes) - displays all issues stored in the database where their notes contain the note set by the user with this very function <br/> <br/> **note** - a string of characters. This can be used in conjunction with SQL-syntax like providing a " or % around the note.
+`dr<tab>repo_id` | (download repository) - downloads the repository’s files into a separate folder. This folder’s location is set by the configuration file. The strucutre of the downloaded files also is identical to that of its respository.
+`quit` | terminates this program.
