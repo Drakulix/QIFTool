@@ -75,3 +75,8 @@ sections for the user to fill out.
     1. `[keywords]` - string of characters with each element separated by a tabulator. Note that the keywords will be used to find patterns that exactly match. So ’refactor’ will find ’refactoring’ but not vice versa. In addition the keywords are connected with a logical and.
     1. `[issue_comments]` - an integer over 0. It will show issues that have at least the amount of comments set in this metric. So 5 will yield issues with 5 or more comments.
     1. `[repo_contributors]` - an integer over 0. It will show issues that have at least the amount of contributors working on the corresponding repository. So 5 will yield issues with more 5 or more contributors working on its repository.
+
+## Interactive Mode <a name="interactive_mode"/>
+
+Once you successfully configered the configuration file in 3 an interactive mode will be seen on the console after running it. In this mode the program will wait for the user to simply type a desired function into the console and confirming it by pressing enter. After being done with a function the program goes back to displaying the interactive mode as it loops itself around it.
+
