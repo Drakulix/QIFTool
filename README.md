@@ -25,4 +25,4 @@ QIFTool is written in Python(3.8) and uses [Google’s Custom Search JSON API](h
 
 ## How to run the program
 
-1. Download the <’qiftool.py’> and <’requirements.txt’> files from the repository
+1. Download the '<qiftool.py>' and <’requirements.txt’> files from the repository
