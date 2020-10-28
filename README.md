@@ -42,13 +42,13 @@ the user a space to use their own parameters used by the tool. The file contains
 sections for the user to fill out.
 
 `[DEFAULT]
-path_of_database = current
-path_of_download = current
+  path_of_database = current
+  path_of_download = current
 [credentials]
-github_api_key = randomnumberandlettersinlowercase
-google_api_key = randomlettersinuppderandlowercaseandsymbols
-google_cse_id = randomleterandnumbersinlowercase
+  github_api_key = randomnumberandlettersinlowercase
+  google_api_key = randomlettersinuppderandlowercaseandsymbols
+  google_cse_id = randomleterandnumbersinlowercase
 [metrics]
-keywords = technical debt refactor rewrite
-issue_comments = 5
-repo_contributors = 50`
+  keywords = technical debt refactor rewrite
+  issue_comments = 5
+  repo_contributors = 50`
