@@ -80,4 +80,4 @@ sections for the user to fill out.
 
 Once you successfully configered the configuration file in 3 an interactive mode will be seen on the console after running it. In this mode the program will wait for the user to simply type a desired function into the console and confirming it by pressing enter. After being done with a function the program goes back to displaying the interactive mode as it loops itself around it.
 
-[interactive mode](/interactive_mode_large.png)
+![interactive mode](/interactive_mode_large.png)
