@@ -11,7 +11,7 @@ The documentation can also be found here: [Documentation](QIFTool___Documentatio
 - [How to run the program](#how_to)
 - [Configuration file](#config)
 - [Interactive mode](#interactive_mode)
-  - [Functions](#im_functions)
+  - [Functions](#functions)
 - [SQLite - Database](#sqlite)
   - [Repositories](#sqlite_repositories)
   - [Issues](#sqlite_issues)
@@ -94,3 +94,39 @@ Function | Description
 `giwn<tab>note` | (get issues where notes) - displays all issues stored in the database where their notes contain the note set by the user with this very function <br/> <br/> **note** - a string of characters. This can be used in conjunction with SQL-syntax like providing a " or % around the note.
 `dr<tab>repo_id` | (download repository) - downloads the repository’s files into a separate folder. This folder’s location is set by the configuration file. The strucutre of the downloaded files also is identical to that of its respository.
 `quit` | terminates this program.
+
+## SQLite - Database <a name="sqlite"/>
+
+This tool uses the SQLite version 3.33.0 (2020-8-14) library. The database created with this tool consists of two tables with one table refering to the other in a 1:n relation.
+
+![uml_database](/uml.png)
+
+### Repositories <a name="repositories"/>
+
+Attribute | Datatype | Description
+----------|----------|------------
+`repo_id (primary key)` | `integer` | indentifier for a repository
+`repo_url ` | `text` | url for the JSON file of this repository
+`repo_htmlurl` | `text` | url that refers to the web based github repository
+`repo_about` | `text` | text & contains the 'about' of the repository found on github. It's a brief description of the repository
+`repo_creator` | `text` | name of the creator of this repository or fork
+`repo_name` | `text` | name of the repository
+`repo_size` | `integer` | size of this repository in MB
+`languages` | `text` | list of programming languages used in this repository
+`contributors` | `integer` | amount of contributors of this repository
+`issues_amount` | `integer` | amount of issues of this repository
+`issues_keywords` | `text` | a list of all keywords that where used to find issues related to this repository
+`issues_labels` | `text` | a list of labels that were used for the issues found
+`code_frequency_additions` | `integer` | overall amount of lines of code added to this repository
+`code_frequency_deletions` | `integer` | overall amount of lines of code deleted from this repository
+`code_frequency_ratio` | `real` | quotient of the lines of code added and deleted. A value between 0 and 1 with 1 meaning all code that was added got deleted and 0 meaning all code that was added none got deleted.
+`` | `` | 
+`` | `` | 
+`` | `` | 
+`` | `` | 
+`` | `` | 
+`` | `` | 
+`` | `` | 
+`` | `` | 
+`` | `` | 
+`` | `` | 
