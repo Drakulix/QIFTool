@@ -71,6 +71,6 @@ sections for the user to fill out.
       1. [use this link](https://cse.google.com/cse/all) and click on the project you used to create the google key with
       1. look for the ’Search engine ID’ and paste the ID as a parameter
 1. `[metrics]` These contain the metrics used for the google search. For further details for understanding each metric please refer to the tables in [SQLite Database](#sqlite).
-  1. `[keywords]` - string of characters with each element separated by a tabulator. Note that the keywords will be used to find patterns that exactly match. So ’refactor’ will find ’refactoring’ but not vice versa. In addition the keywords are connected with a logical and.
-  1. `[issue_comments]` - an integer over 0. It will show issues that have at least the amount of comments set in this metric. So 5 will yield issues with 5 or more comments.
-  1. `[repo_contributors]` - an integer over 0. It will show issues that have at least the amount of contributors working on the corresponding repository. So 5 will yield issues with more 5 or more contributors working on its repository.
+    1. `[keywords]` - string of characters with each element separated by a tabulator. Note that the keywords will be used to find patterns that exactly match. So ’refactor’ will find ’refactoring’ but not vice versa. In addition the keywords are connected with a logical and.
+    1. `[issue_comments]` - an integer over 0. It will show issues that have at least the amount of comments set in this metric. So 5 will yield issues with 5 or more comments.
+    1. `[repo_contributors]` - an integer over 0. It will show issues that have at least the amount of contributors working on the corresponding repository. So 5 will yield issues with more 5 or more contributors working on its repository.
