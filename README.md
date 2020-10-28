@@ -58,7 +58,7 @@ sections for the user to fill out.
 
 1. `[credentials`  this section contains the corresponding credentials necessary to run the used APIs
   1. `[github_api_key]`
-  ..1. register on github
+    1. register on github
     1. [use this link](https://github.com/settings/tokens) and click on ’generate new token’ to create a new key
     1. paste the key as a parameter
   1. `[google_api_key]`
