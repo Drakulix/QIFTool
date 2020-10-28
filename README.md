@@ -87,4 +87,4 @@ Once you successfully configered the configuration file in 3 an interactive mode
 Function | Description
 ---------|------------
 sq | (search query) - start the google search. The metrics set in the configuration file will be used to determine what results will be found and shown.
-sn<tab><issue_id><tab><message> | (set notes) - sets a note for a certain issue inside the database issue_id - a string of numbers. Found within the issue_id field in either the ouput or database of the issue. message - a string of characters that will be inserted into the notes field inside the database.
+sn<tab><issue_id><tab><message> | (set notes) - sets a note for a certain issue inside the database  issue_id - a string of numbers. Found within the issue_id field in either the ouput or database of the issue.  message - a string of characters that will be inserted into the notes field inside the database.
