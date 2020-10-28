@@ -57,7 +57,7 @@ sections for the user to fill out.
 ```
 1. `[DEFAULT]` this section contains the path for the database and downloaded repositories to be stored in. The user is able to create their own path with the location of the ’qiftool.py”s as a pivot. These can be changed by providiung a valid path on your machine.
 
-1. `[credentials]`  this section contains the corresponding credentials necessary to run the used APIs
+1. `[credentials]` this section contains the corresponding credentials necessary to run the used APIs
     1. `[github_api_key]`
         1. register on github
         1. [use this link](https://github.com/settings/tokens) and click on ’generate new token’ to create a new key
