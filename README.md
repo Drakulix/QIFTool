@@ -81,3 +81,10 @@ sections for the user to fill out.
 Once you successfully configered the configuration file in 3 an interactive mode will be seen on the console after running it. In this mode the program will wait for the user to simply type a desired function into the console and confirming it by pressing enter. After being done with a function the program goes back to displaying the interactive mode as it loops itself around it.
 
 ![interactive mode](/interactive_mode_large.png)
+
+### Functions
+
+Function | Description
+---------|------------
+sq | (search query) - start the google search. The metrics set in the configuration file will be used to determine what results will be found and shown.
+sn<tab><issue_id><tab><message> | (set notes) - sets a note for a certain issue inside the database issue_id - a string of numbers. Found within the issue_id field in either the ouput or database of the issue. message - a string of characters that will be inserted into the notes field inside the database.
