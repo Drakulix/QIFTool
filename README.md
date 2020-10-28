@@ -23,7 +23,7 @@ The documentation can also be found here: [Documentation](QIFTool___Documentatio
 
 QIFTool is written in Python(3.8) and uses [Google’s Custom Search JSON API](https://developers.google.com/custom-search/v1/overview) in conjunction with [Google’s Custom Search Engine](https://developers.google.com/custom-search) to filter issues directly on Github. Keywords will be read out of a configuration file to determine which issues should be prefiltered. All prefiltered issues found by the engine will be inserted for research and caching purposes into a SQLite database. Afterwards it uses the official Github API ([PyGithub](https://pygithub.readthedocs.io/en/latest/index.html)) to look through the available pieces of metainformation inside each found issue and compares them to the other metrics set in the configuration file to only show the issues that match the requirements.
 
-## How to run the program<a name="how_to"/>
+## How to run the program <a name="how_to"/>
 
 
 1. Download the `qiftool.py`  and `requirements.txt` files from the repository
@@ -36,7 +36,7 @@ QIFTool is written in Python(3.8) and uses [Google’s Custom Search JSON API](h
 1. The tool should now operate properly and an interactive mode will be seen.
 Follow [Interactive mode](#interactive_mode) for further instructions
 
-## Configuration file
+## Configuration file <a name="config"/>
 
 This file is created by running the program for the very first time. It is used to give
 the user a space to use their own parameters used by the tool. The file contains three
