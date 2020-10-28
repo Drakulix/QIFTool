@@ -13,8 +13,8 @@ The documentation can also be found here: [Documentation](QIFTool___Documentatio
 - [Interactive mode](#interactive_mode)
   - [Functions](#functions)
 - [SQLite - Database](#sqlite)
-  - [Repositories](#sqlite_repositories)
-  - [Issues](#sqlite_issues)
+  - [Repositories](#repositories)
+  - [Issues](#issues)
 - [Expanding the tool](#expanding)
   - [Metrics](#ex_metrics)
   - [SQLite commands](#ex_sqlite)
@@ -120,13 +120,23 @@ Attribute | Datatype | Description
 `code_frequency_additions` | `integer` | overall amount of lines of code added to this repository
 `code_frequency_deletions` | `integer` | overall amount of lines of code deleted from this repository
 `code_frequency_ratio` | `real` | quotient of the lines of code added and deleted. A value between 0 and 1 with 1 meaning all code that was added got deleted and 0 meaning all code that was added none got deleted.
-`` | `` | 
-`` | `` | 
-`` | `` | 
-`` | `` | 
-`` | `` | 
-`` | `` | 
-`` | `` | 
-`` | `` | 
-`` | `` | 
-`` | `` | 
+
+### Issues <a name="issues"/>
+
+Attribute | Datatype | Description
+----------|----------|------------
+`repo_id (foreign key)` | `integer` | identifier for the repository this issue belongs to
+`issue_id` | `integer` | identifier for an issue
+`issue_url` | `text` | url for the JSON file of this issue
+`issue_htmlurl` | `text` | url that refers to the web based github issue
+`issue_title` | `text` | title of the issue
+`issue_number` | `integer` | relative number of this issue created within its repository
+`score` | `integer` | value to set by the user. Used for the user's own usage of a rank system. Makes it possible to rank found issues relative to each other in order to find more valuable issues easier later on
+`notes` | `text` | string to set by the user. Used for the user's own organisation. Makes it possible to note interesting attributes about a certain discussion or topic sorting. It's possible to look for certain patterns inside the set notes
+`amount_of_comments` | `integer` | amount of comments that the issue has
+`relevance` | `integer` | value corresponding to the relative order of issues found with a query. The higher up (earlier) the issue has been found the higher its relevance. Third hit on page two equals a relevance of 23. These relevances change to show an all time best relevance every time the issue has been found.
+`keywords` | `text` | list of all keywords that has been used to find this issue over all query iterations
+`labels` | `text` | list of all labels that are used with this issue
+`linked_issues` | `text` | list of all issues that are linked to within this issue. *This attribute has yet to be implemented*
+`create_date` | `text` | date of the creation of this issue. Although the datatype is a 'text', SQLlite still recognizes the string as a date due its formatting
+`closed_at` | `text` | date of when the issue was closed. Although the datatype is a 'text', SQLlite still recognizes the string as a date due its formatting. If the issue has not been closed yet this field is set to 'NA'
