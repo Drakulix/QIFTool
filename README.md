@@ -25,4 +25,12 @@ QIFTool is written in Python(3.8) and uses [Google’s Custom Search JSON API](h
 
 ## How to run the program
 
-1. Download the `<'qiftool.py'>`  and `<'requirements.txt'>` files from the repository
+1. Download the `qiftool.py`  and `requirements.txt` files from the repository
+1. Place both files in the desired location
+1. Open the terminal and navigate to the files’ location
+1. Install all dependencies by running `pip3 install -r /path/to/requirements.txt` or just `pip install -r /path/to/requirements.txt` depending on your python version
+1. Run the program by using `python3 qiftool.py`
+1. By running it for the very first time the tool should have created a `config.ini` file inside the tool’s folder. Fill out the necessary parameters following the instructions in (#config)
+1. With the `config.file` filled out run the programm again just like in step 5
+1. The tool should now operate properly and an interactive mode will be seen.
+Follow (#interactive_mode) for further instructions
