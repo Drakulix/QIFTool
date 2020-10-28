@@ -33,4 +33,22 @@ QIFTool is written in Python(3.8) and uses [Google’s Custom Search JSON API](h
 1. By running it for the very first time the tool should have created a `config.ini` file inside the tool’s folder. Fill out the necessary parameters following the instructions in [Configuration file](#config)
 1. With the `config.file` filled out run the programm again just like in step 5
 1. The tool should now operate properly and an interactive mode will be seen.
-Follow [interactive mode](#interactive_mode) for further instructions
+Follow [Interactive mode](#interactive_mode) for further instructions
+
+## Configuration file
+
+This file is created by running the program for the very first time. It is used to give
+the user a space to use their own parameters used by the tool. The file contains three
+sections for the user to fill out.
+
+`[DEFAULT]
+path_of_database = current
+path_of_download = current
+[credentials]
+github_api_key = randomnumberandlettersinlowercase
+google_api_key = randomlettersinuppderandlowercaseandsymbols
+google_cse_id = randomleterandnumbersinlowercase
+[metrics]
+keywords = technical debt refactor rewrite
+issue_comments = 5
+repo_contributors = 50`
