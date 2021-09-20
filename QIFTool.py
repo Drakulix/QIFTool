@@ -381,7 +381,7 @@ def stats_code_frequency(repo, auth):
     :return: returns an SCF-object
     """
     try:
-        from main import reset_sleep
+        #from . import reset_sleep
         if auth.get_rate_limit().core.remaining <= 0:
             reset_sleep(auth)
         scf_obj = repo.get_stats_code_frequency()
@@ -416,7 +416,7 @@ def contributors(repo, auth):
     :return: returns an Contributors-object
     """
     try:
-        from main import reset_sleep
+        #from main import reset_sleep
         if auth.get_rate_limit().core.remaining <= 0:
             reset_sleep(auth)
         contributor = Contributors(size=repo.get_contributors().totalCount)
